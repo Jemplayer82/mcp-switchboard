@@ -1,22 +1,22 @@
-# Service snippet to MERGE into the existing mcp-shared stack compose.
+# Standalone Portainer stack for agentbus (Web Server endpoint 3).
 # Prebuilt image only — never `build:` on a Portainer/edge stack.
 #
-# Also add to the stack's top-level `volumes:` block:
-#   mcp-shared_agentbus-data:
-#     driver: local
+# Deployed as its own stack rather than merged into mcp-shared to keep zero
+# blast radius on that production multi-service stack. It can be folded into
+# mcp-shared later by moving this service block under that stack's `services:`.
 services:
   agentbus-mcp:
     image: ghcr.io/jemplayer82/mcp-agentbus:latest
     container_name: agentbus-mcp
     restart: unless-stopped
     ports:
-      - "3107:3107"
+      - "3108:3107"   # host 3108 (3107 taken by mcp-home-assistant) -> container 3107
     environment:
       PORT: "3107"
       AGENTBUS_MCP_TOKEN: ${AGENTBUS_MCP_TOKEN}
       AGENTBUS_DB_PATH: /data/agentbus.db
     volumes:
-      - mcp-shared_agentbus-data:/data
+      - agentbus_data:/data
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3107/healthz"]
       interval: 30s
@@ -25,5 +25,5 @@ services:
       start_period: 15s
 
 volumes:
-  mcp-shared_agentbus-data:
+  agentbus_data:
     driver: local
