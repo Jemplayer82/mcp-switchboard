@@ -6,11 +6,11 @@ import { createServer } from "node:http";
 import { bus } from "./bus.js";
 import { registerTools } from "./tools.js";
 
-const USER_TOKEN = process.env.AGENTBUS_MCP_TOKEN;
+const USER_TOKEN = process.env.SWITCHBOARD_MCP_TOKEN;
 const PORT = Number(process.env.PORT ?? 3107);
 
 if (!USER_TOKEN) {
-  console.error("[agentbus] AGENTBUS_MCP_TOKEN is required");
+  console.error("[switchboard] SWITCHBOARD_MCP_TOKEN is required");
   process.exit(1);
 }
 
@@ -26,7 +26,7 @@ function sendJson(res, status, body) {
 }
 
 function buildServer() {
-  const server = new McpServer({ name: "agentbus", version: "0.1.0" }, { capabilities: { tools: {} } });
+  const server = new McpServer({ name: "mcp-switchboard", version: "0.1.0" }, { capabilities: { tools: {} } });
   registerTools(server, bus); // tools close over the module-level singleton
   return server;
 }
@@ -84,9 +84,9 @@ const httpServer = createServer(async (req, res) => {
     }
     await transport.handleRequest(req, res, body);
   } catch (err) {
-    console.error("[agentbus] request error:", err);
+    console.error("[switchboard] request error:", err);
     sendJson(res, 500, { error: "Internal server error" });
   }
 });
 
-httpServer.listen(PORT, "0.0.0.0", () => console.log(`[agentbus] listening on :${PORT}`));
+httpServer.listen(PORT, "0.0.0.0", () => console.log(`[switchboard] listening on :${PORT}`));

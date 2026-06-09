@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = process.env.AGENTBUS_DB_PATH ?? "/data/agentbus.db";
+const DB_PATH = process.env.SWITCHBOARD_DB_PATH ?? "/data/switchboard.db";
 const PRESENCE_TTL_MS = 60_000;
 const ACTIVITY_CHANNEL = "#activity";
 const DM = "@dm";
@@ -301,7 +301,7 @@ class Bus {
     // Fire-and-forget. The message is already durable; a failed wake still delivers on next poll.
     Promise.resolve()
       .then(() => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }))
-      .catch((err) => console.error("[agentbus] wake POST failed:", url, String(err)));
+      .catch((err) => console.error("[switchboard] wake POST failed:", url, String(err)));
   }
 }
 

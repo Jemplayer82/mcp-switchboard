@@ -1,11 +1,11 @@
-// Live verification against a deployed agentbus. Two clients, real-time round-trip.
-// Usage: AGENTBUS_URL=http://192.168.7.50:3108/mcp AGENTBUS_MCP_TOKEN=... node test/live.mjs
+// Live verification against a deployed mcp-switchboard. Two clients, real-time round-trip.
+// Usage: SWITCHBOARD_URL=http://192.168.7.50:3108/mcp SWITCHBOARD_MCP_TOKEN=... node test/live.mjs
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const URL_ = process.env.AGENTBUS_URL ?? "http://192.168.7.50:3108/mcp";
-const TOKEN = process.env.AGENTBUS_MCP_TOKEN;
-if (!TOKEN) { console.error("Set AGENTBUS_MCP_TOKEN"); process.exit(1); }
+const URL_ = process.env.SWITCHBOARD_URL ?? "http://192.168.7.50:3108/mcp";
+const TOKEN = process.env.SWITCHBOARD_MCP_TOKEN;
+if (!TOKEN) { console.error("Set SWITCHBOARD_MCP_TOKEN"); process.exit(1); }
 
 let failed = false;
 const assert = (c, m) => { if (!c) { failed = true; console.error("  ✗ " + m); } else console.log("  ✓ " + m); };

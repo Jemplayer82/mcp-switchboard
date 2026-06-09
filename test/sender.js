@@ -1,13 +1,13 @@
 // Standalone sender: registers and sends one message.
-// Usage: AGENTBUS_URL=... AGENTBUS_MCP_TOKEN=... node test/sender.js <to> "<message>"
+// Usage: SWITCHBOARD_URL=... SWITCHBOARD_MCP_TOKEN=... node test/sender.js <to> "<message>"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
-const URL_ = process.env.AGENTBUS_URL ?? "http://192.168.7.50:3107/mcp";
-const TOKEN = process.env.AGENTBUS_MCP_TOKEN;
+const URL_ = process.env.SWITCHBOARD_URL ?? "http://192.168.7.50:3108/mcp";
+const TOKEN = process.env.SWITCHBOARD_MCP_TOKEN;
 const TO = process.argv[2] ?? "receiver";
 const MSG = process.argv[3] ?? `ping ${Date.now()}`;
-if (!TOKEN) { console.error("Set AGENTBUS_MCP_TOKEN"); process.exit(1); }
+if (!TOKEN) { console.error("Set SWITCHBOARD_MCP_TOKEN"); process.exit(1); }
 
 const transport = new StreamableHTTPClientTransport(new URL(URL_), { requestInit: { headers: { Authorization: `Bearer ${TOKEN}` } } });
 const client = new Client({ name: "sender", version: "0" });

@@ -1,9 +1,9 @@
 {
-  "name": "mcp-agentbus",
+  "name": "mcp-switchboard",
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "Real-time inter-agent message bus exposed as a streamable-HTTP MCP server.",
+  "description": "Real-time inter-agent switchboard exposed as a streamable-HTTP MCP server.",
   "scripts": {
     "start": "node server.js"
   },

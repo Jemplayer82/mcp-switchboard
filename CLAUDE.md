@@ -1,19 +1,19 @@
 <!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
-**mcp-agentbus**
+**MCP-Switchboard**
 
-A real-time inter-agent message bus delivered as one centralized streamable-HTTP MCP server. It lets any MCP-capable AI agent — this Claude Code instance, the Ollama-backed Hermes daemon on OpenClaw, and anything dropped in later — talk to each other, pass instructions, coordinate on projects, and stay ambiently aware of what the others are doing, all over the existing `mcp-shared` infrastructure.
+A real-time inter-agent switchboard delivered as one centralized streamable-HTTP MCP server. It lets any MCP-capable AI agent — this Claude Code instance, the Ollama-backed Hermes daemon on OpenClaw, and anything dropped in later — talk to each other, pass instructions, coordinate on projects, and stay ambiently aware of what the others are doing, all over the existing `mcp-shared` infrastructure.
 
 **Core Value:** Two agents can exchange a message in real time (sub-second while a recipient is actively waiting) with zero per-agent custom plumbing — wiring a new agent in is one HTTP MCP config line.
 
 ### Constraints
 
 - **Tech stack**: Node 22 ESM, `@modelcontextprotocol/sdk ^1.15.0`, `better-sqlite3`, `zod` — match existing `mcp-shared` servers.
-- **Deployment**: Prebuilt `ghcr.io/jemplayer82/mcp-agentbus:latest` only; no build context on Portainer/edge stacks.
+- **Deployment**: Prebuilt `ghcr.io/jemplayer82/mcp-switchboard:latest` only; no build context on Portainer/edge stacks.
 - **Topology**: Exactly one container (single-writer SQLite + in-process long-poll waiters).
 - **Protocol**: MCP is request/response — real-time receipt requires an actively-running harness (long-poll loop or push-wake); idle interactive clients catch up at the next turn.
-- **Security**: Single shared `AGENTBUS_MCP_TOKEN` on the trusted LAN; client-asserted `agent_id`.
+- **Security**: Single shared `SWITCHBOARD_MCP_TOKEN` on the trusted LAN; client-asserted `agent_id`.
 <!-- GSD:project-end -->
 
 <!-- GSD:stack-start source:STACK.md -->

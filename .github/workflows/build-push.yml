@@ -1,4 +1,4 @@
-name: Build and Push mcp-agentbus
+name: Build and Push mcp-switchboard
 on:
   push:
     branches: [main, master]
@@ -23,4 +23,4 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: ghcr.io/jemplayer82/mcp-agentbus:latest
+          tags: ghcr.io/jemplayer82/mcp-switchboard:latest

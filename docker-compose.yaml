@@ -1,22 +1,22 @@
-# Standalone Portainer stack for agentbus (Web Server endpoint 3).
+# Standalone Portainer stack for mcp-switchboard (Web Server endpoint 3).
 # Prebuilt image only — never `build:` on a Portainer/edge stack.
 #
 # Deployed as its own stack rather than merged into mcp-shared to keep zero
 # blast radius on that production multi-service stack. It can be folded into
 # mcp-shared later by moving this service block under that stack's `services:`.
 services:
-  agentbus-mcp:
-    image: ghcr.io/jemplayer82/mcp-agentbus:latest
-    container_name: agentbus-mcp
+  switchboard-mcp:
+    image: ghcr.io/jemplayer82/mcp-switchboard:latest
+    container_name: switchboard-mcp
     restart: unless-stopped
     ports:
       - "3108:3107"   # host 3108 (3107 taken by mcp-home-assistant) -> container 3107
     environment:
       PORT: "3107"
-      AGENTBUS_MCP_TOKEN: ${AGENTBUS_MCP_TOKEN}
-      AGENTBUS_DB_PATH: /data/agentbus.db
+      SWITCHBOARD_MCP_TOKEN: ${SWITCHBOARD_MCP_TOKEN}
+      SWITCHBOARD_DB_PATH: /data/switchboard.db
     volumes:
-      - agentbus_data:/data
+      - switchboard_data:/data
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:3107/healthz"]
       interval: 30s
@@ -25,5 +25,5 @@ services:
       start_period: 15s
 
 volumes:
-  agentbus_data:
+  switchboard_data:
     driver: local
