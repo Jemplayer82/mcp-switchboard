@@ -78,12 +78,36 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmap) | — | Pending |
+| CONN-01 | Phase 1 | Pending |
+| CONN-02 | Phase 1 | Pending |
+| MSG-01 | Phase 1 | Pending |
+| MSG-02 | Phase 1 | Pending |
+| MSG-03 | Phase 1 | Pending |
+| MSG-04 | Phase 1 | Pending |
+| MSG-05 | Phase 1 | Pending |
+| MSG-06 | Phase 1 | Pending |
+| CHAN-01 | Phase 1 | Pending |
+| CHAN-02 | Phase 1 | Pending |
+| CHAN-03 | Phase 1 | Pending |
+| COORD-01 | Phase 1 | Pending |
+| COORD-02 | Phase 1 | Pending |
+| PRES-01 | Phase 2 | Pending |
+| PRES-02 | Phase 2 | Pending |
+| PRES-03 | Phase 2 | Pending |
+| AWARE-01 | Phase 2 | Pending |
+| AWARE-02 | Phase 2 | Pending |
+| DEPLOY-01 | Phase 3 | Pending |
+| DEPLOY-02 | Phase 3 | Pending |
+| DEPLOY-03 | Phase 3 | Pending |
+| CONN-03 | Phase 4 | Pending |
+| AWARE-03 | Phase 4 | Pending |
+| VERIFY-01 | Phase 5 | Pending |
+| VERIFY-02 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 22 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 22 ⚠️
+- Mapped to phases: 22 (100%)
+- Unmapped: 0
 
 ---
-*Last updated: 2026-06-09 after initialization*
+*Last updated: 2026-06-09 after roadmap creation*
