@@ -5,16 +5,22 @@
 See: .planning/PROJECT.md (updated 2026-06-09)
 
 **Core value:** Two agents exchange a message in real time (sub-second while a recipient is actively waiting) with zero per-agent custom plumbing — wiring a new agent is one HTTP MCP config line.
-**Current focus:** Phase 1 — Bus Core
+**Current focus:** Phase 5 — final verification (Claude↔Hermes) — blocked on Hermes wiring (OpenClaw host)
 
 ## Current Position
 
-Phase: 1 of 5 (Bus Core)
-Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-06-09 — Roadmap created (5 phases, single milestone, coarse granularity)
+Phases 1-4: BUILT, DEPLOYED, VERIFIED. Phase 5: VERIFY-01 done; VERIFY-02 pending Hermes.
+Status: Live at http://192.168.7.50:3108/mcp (Portainer stack "agentbus" id 63, endpoint 3, host 3108→container 3107)
+Last activity: 2026-06-09 — bus deployed + verified live (214ms round-trip); Claude Code wired (.claude.json) + awareness hooks installed
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████████░] ~90% (only the Claude↔Hermes live leg remains, gated on the OpenClaw boundary)
+
+### Built & verified
+- Phase 1-2 (Bus Core + Presence/Wake/Awareness): server.js/bus.js/tools.js/schema.sql — 12 MCP tools + REST /status,/activity. Smoke test green (<1s delivery, drain, no-redelivery, channels, instruction→result, presence, activity).
+- Phase 3 (Ship): ghcr.io/jemplayer82/mcp-agentbus:latest via CI; deployed as STANDALONE Portainer stack (deviation from "merge into mcp-shared" — chosen for zero blast radius on the 9-service production stack; reversible). Live /healthz ok, durability proven across container recreate.
+- Phase 4 (Wire + hooks): Claude Code .claude.json entry added (backup at C:/tmp/claude.json.backup-*); awareness hooks merged into ~/.claude/settings.json (backup at C:/tmp/claude-settings.backup-*); ~/.agentbus/config.json written. Hooks tested live. **Takes effect on next Claude Code restart.**
+- Port note: 3107 was taken by mcp-home-assistant → host 3108.
+- Token: C:/tmp/agentbus-token.txt (also in .claude.json + ~/.agentbus/config.json). NOT committed.
 
 ## Performance Metrics
 
@@ -54,7 +60,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 2/4] `wake_url` push depends on OpenClaw exposing a reachable run-trigger endpoint. If none exists, Hermes falls back to a persistent long-poll loop. Confirm exact path during the wiring phase.
+- **[Phase 4/5 — ACTIVE BOUNDARY] Hermes wiring is the user's step.** Hermes runs on the OpenClaw host (192.168.1.19); its MCP config is NOT in the local `~/.openclaw/openclaw.json` (zero `mcp` keys — `tools` is just `{profile:messaging}`). I have no access to that host (shared-infra SSH was classifier-blocked). Add to Hermes' MCP config: HTTP server `agentbus` → `http://192.168.7.50:3108/mcp` with `Authorization: Bearer <token from C:/tmp/agentbus-token.txt>`. For async receipt give Hermes a persistent `wait_for_message` loop, or a `wake_url` pointing at OpenClaw's run-trigger endpoint. Once wired, VERIFY-02 (Claude↔Hermes round-trip) can run.
+- [Phase 2/4] `wake_url` push depends on OpenClaw exposing a reachable run-trigger endpoint. If none exists, Hermes falls back to a persistent long-poll loop. Confirm exact path during wiring.
 - [Phase 4] Claude Code cannot be webhook-woken (no inbound endpoint). Its async path is a scheduled/cron headless routine or a live `wait_for_message` loop — do NOT register a `wake_url` for Claude.
 
 ## Deferred Items
