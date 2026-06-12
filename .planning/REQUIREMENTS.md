@@ -1,6 +1,6 @@
-# Requirements: mcp-agentbus
+# Requirements: mcp-switchboard
 
-**Defined:** 2026-06-09
+**Defined:** 2026-06-09 (v1) · 2026-06-11 (v1.1)
 **Core Value:** Two agents exchange a message in real time with zero per-agent custom plumbing.
 
 ## v1 Requirements
@@ -53,6 +53,32 @@
 
 - [ ] **VERIFY-01**: A standalone two-client test proves sub-second delivery, backlog durability, and restart persistence
 - [ ] **VERIFY-02**: Claude ↔ Hermes complete an instruction→result round-trip end to end
+
+## v1.1 Requirements — Supergateway Fronting + Playwright Scraper
+
+### Gateway
+
+- [ ] **GATE-01**: Every backend MCP server is reachable through one supergateway endpoint on `192.168.7.50:8000` via path routing — clients use a single host:port for all servers
+- [ ] **GATE-02**: The switchboard MCP is reachable through the gateway at a stable path (e.g. `:8000/switchboard/mcp`) with the shared bearer token authenticating end to end
+- [ ] **GATE-03**: The gateway runs as a prebuilt/config-only Portainer stack (no `build:` context) with durable config and an observable health/up signal
+
+### Scraper
+
+- [ ] **SCRAPE-01**: A Playwright-backed MCP server (Microsoft `@playwright/mcp`) is exposed as streamable-HTTP behind the gateway at its own path (e.g. `:8000/scraper/mcp`)
+- [ ] **SCRAPE-02**: An agent can drive the scraper through the gateway to navigate to a URL and extract page content/text via its MCP tools
+- [ ] **SCRAPE-03**: The scraper deploys as a prebuilt image with Playwright browsers baked in — no build context on Portainer/edge
+
+### Connectivity (v1.1)
+
+- [ ] **CONN-04**: Claude Code (and other clients) are rewired to the gateway endpoint(s); adding a new agent or a new backend MCP stays a one-line config/mount change
+
+### Deployment (v1.1)
+
+- [ ] **DEPLOY-04**: The live switchboard is redeployed from current `main` (restoring `/status`, `/activity`, `/healthz`) and the retired `agentbus` stack (id 63) / `:3108` references are reconciled across compose + planning docs
+
+### Verification (v1.1)
+
+- [ ] **VERIFY-03**: In one session an agent reaches BOTH the switchboard and the scraper through the single `:8000` gateway (one host:port, two backends), proving the multiplex works end to end
 
 ## v2 Requirements
 
