@@ -129,11 +129,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AWARE-03 | Phase 4 | Pending |
 | VERIFY-01 | Phase 5 | Pending |
 | VERIFY-02 | Phase 5 | Pending |
+| GATE-01 | Phase 6 | Pending |
+| GATE-02 | Phase 6 | Pending |
+| GATE-03 | Phase 6 | Pending |
+| DEPLOY-04 | Phase 6 | Pending |
+| SCRAPE-01 | Phase 7 | Pending |
+| SCRAPE-02 | Phase 7 | Pending |
+| SCRAPE-03 | Phase 7 | Pending |
+| CONN-04 | Phase 8 | Pending |
+| VERIFY-03 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 22 total
-- Mapped to phases: 22 (100%)
-- Unmapped: 0
+- v1.0 requirements: 22 total — mapped 22/22 (100%, phases 1–5)
+- v1.1 requirements: 9 total — mapped 9/9 (100%, phases 6–8)
+- Cumulative: 31 requirements, 31 mapped, 0 unmapped
 
 ---
-*Last updated: 2026-06-09 after roadmap creation*
+*Last updated: 2026-06-11 after v1.1 roadmap creation*
