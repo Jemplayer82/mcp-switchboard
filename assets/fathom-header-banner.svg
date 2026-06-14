@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 44" width="960" height="44" role="img" aria-label="Fathom Works — mcp-switchboard">
+  <rect width="960" height="44" fill="#030d14"/>
+  <line x1="0" y1="43.5" x2="960" y2="43.5" stroke="#1d2a36" stroke-width="1"/>
+  <g transform="translate(20,12) scale(0.278)">
+    <g transform="translate(0,4)">
+      <line x1="8" y1="4" x2="52" y2="4" stroke="#cce8f4" stroke-width="1.5" opacity="0.35" stroke-linecap="round"/>
+      <line x1="14" y1="9" x2="46" y2="9" stroke="#cce8f4" stroke-width="1" opacity="0.18" stroke-linecap="round"/>
+      <line x1="30" y1="4" x2="30" y2="50" stroke="#cce8f4" stroke-width="1.5" opacity="0.5" stroke-linecap="round"/>
+      <line x1="20" y1="18" x2="40" y2="18" stroke="#6cd5e6" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="20" y1="39" x2="40" y2="39" stroke="#6cd5e6" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="24" y1="28" x2="36" y2="28" stroke="#6cd5e6" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="17" cy="18" r="1.5" fill="#6cd5e6" opacity="0.7"/>
+      <circle cx="17" cy="39" r="1.5" fill="#6cd5e6" opacity="0.7"/>
+      <path d="M30,49 C30,49 22,53 22,58 C22,62.4 25.6,66 30,66 C34.4,66 38,62.4 38,58 C38,53 30,49 30,49Z" fill="#6cd5e6"/>
+      <circle cx="30" cy="58" r="2.5" fill="#060a0f" opacity="0.85"/>
+    </g>
+  </g>
+  <text x="44" y="27" font-family="Georgia,'Times New Roman',Times,serif" font-size="13" font-weight="700" fill="#eaf3fa" letter-spacing="6">FATHOM WORKS</text>
+  <text x="940" y="27" text-anchor="end" font-family="'Courier New',Courier,'Liberation Mono',monospace" font-size="11" fill="#6b7d8f" letter-spacing="0.5">mcp-switchboard</text>
+</svg>
