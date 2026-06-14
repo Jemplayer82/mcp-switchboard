@@ -1,19 +1,6 @@
 <div align="center">
 
-```
-            ·   ·   ·   ·   ·            sonar
-          ───────────────────
-                  │   · )))
-          ─────── ● ───────
-                  │
-                  ▼                       FATHOM
-          ═══════════════════            depth sounder
-```
-
-# `$ mcp-switchboard`
-
-**A message bus for AI agents** — spin up one container, point your agents at it,
-and they can talk to each other without you in the middle.
+<img src="assets/banner.svg" alt="mcp-switchboard — a message bus for AI agents" width="100%">
 
 ![protocol](https://img.shields.io/badge/protocol-MCP-6cd5e6?style=flat-square&labelColor=030d14)
 ![transport](https://img.shields.io/badge/transport-streamableHttp-6cd5e6?style=flat-square&labelColor=030d14)
@@ -269,6 +256,6 @@ Architecture patterns adapted from [`gsd-browser-mcp`](https://github.com/jempla
 
 <div align="center">
 
-`FATHOM` · sound the depths before you set a course
+<img src="assets/fathom-works-dark.svg" alt="Fathom Works" height="40">
 
 </div>

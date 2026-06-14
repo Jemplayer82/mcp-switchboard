@@ -1,0 +1,152 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" font-family="&#39;JetBrains Mono&#39;, ui-monospace, SFMono-Regular, Menlo, monospace">
+  <defs>
+    <radialGradient id="busGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6cd5e6" stop-opacity="0.30"></stop>
+      <stop offset="60%" stop-color="#6cd5e6" stop-opacity="0.06"></stop>
+      <stop offset="100%" stop-color="#6cd5e6" stop-opacity="0"></stop>
+    </radialGradient>
+    <linearGradient id="depthBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#04121c"></stop>
+      <stop offset="100%" stop-color="#030a11"></stop>
+    </linearGradient>
+    <linearGradient id="busLine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6cd5e6" stop-opacity="0.15"></stop>
+      <stop offset="50%" stop-color="#6cd5e6" stop-opacity="0.9"></stop>
+      <stop offset="100%" stop-color="#6cd5e6" stop-opacity="0.15"></stop>
+    </linearGradient>
+  </defs>
+
+  
+  <rect width="1280" height="360" fill="#030d14"></rect>
+  <rect x="16" y="16" width="1248" height="328" rx="8" fill="url(#depthBg)" stroke="#1d2a36" stroke-width="1.5"></rect>
+
+  
+  <g stroke="#cce8f4" stroke-width="1">
+    <line x1="17" y1="92" x2="1263" y2="92" opacity="0.035"></line>
+    <line x1="17" y1="132" x2="1263" y2="132" opacity="0.035"></line>
+    <line x1="17" y1="172" x2="1263" y2="172" opacity="0.035"></line>
+    <line x1="17" y1="212" x2="1263" y2="212" opacity="0.035"></line>
+    <line x1="17" y1="252" x2="1263" y2="252" opacity="0.035"></line>
+    <line x1="17" y1="292" x2="1263" y2="292" opacity="0.035"></line>
+  </g>
+
+  
+  <line x1="16" y1="50" x2="1264" y2="50" stroke="#1d2a36" stroke-width="1.5"></line>
+  <g>
+    <circle cx="38" cy="33" r="5" fill="#ff7c7c" opacity="0.85"></circle>
+    <circle cx="56" cy="33" r="5" fill="#f4c95d" opacity="0.85"></circle>
+    <circle cx="74" cy="33" r="5" fill="#2ecc71" opacity="0.85"></circle>
+  </g>
+  <text x="110" y="38" font-size="13" fill="#6b7d8f" letter-spacing="0.5">~/fathom-works/mcp-switchboard</text>
+  <text x="1248" y="38" font-size="12" fill="#6b7d8f" text-anchor="end" letter-spacing="1.5">● BUS ONLINE · :3108</text>
+
+  
+  
+  <g transform="translate(56,128) scale(1.55)">
+    <line x1="8" y1="4" x2="52" y2="4" stroke="#cce8f4" stroke-width="1.5" opacity="0.35" stroke-linecap="round"></line>
+    <line x1="14" y1="9" x2="46" y2="9" stroke="#cce8f4" stroke-width="1" opacity="0.18" stroke-linecap="round"></line>
+    <line x1="30" y1="4" x2="30" y2="50" stroke="#cce8f4" stroke-width="1.5" opacity="0.5" stroke-linecap="round"></line>
+    <line x1="20" y1="18" x2="40" y2="18" stroke="#6cd5e6" stroke-width="2.5" stroke-linecap="round"></line>
+    <line x1="20" y1="39" x2="40" y2="39" stroke="#6cd5e6" stroke-width="2.5" stroke-linecap="round"></line>
+    <line x1="24" y1="28" x2="36" y2="28" stroke="#6cd5e6" stroke-width="1.5" stroke-linecap="round"></line>
+    <circle cx="17" cy="18" r="1.5" fill="#6cd5e6" opacity="0.7"></circle>
+    <circle cx="17" cy="39" r="1.5" fill="#6cd5e6" opacity="0.7"></circle>
+    <path d="M30,49 C30,49 22,53 22,58 C22,62.4 25.6,66 30,66 C34.4,66 38,62.4 38,58 C38,53 30,49 30,49Z" fill="#6cd5e6"></path>
+    <circle cx="30" cy="58" r="2.5" fill="#060a0f" opacity="0.85"></circle>
+  </g>
+  <text x="104" y="285" font-size="11" fill="#6b7d8f" text-anchor="middle" letter-spacing="4">FATHOM</text>
+
+  
+  <text x="206" y="200" font-size="52" font-weight="700" fill="#7be38c">$</text>
+  <text x="244" y="200" font-size="46" font-weight="700" fill="#eaf3fa" letter-spacing="-1.5">mcp-switchboard</text>
+  
+  <rect x="662" y="166" width="20" height="40" fill="#6cd5e6">
+    
+  </rect>
+
+  
+  <text x="248" y="240" font-size="16" fill="#6b7d8f" letter-spacing="0.3">a message bus for AI agents · one container, no middleman</text>
+
+  
+  <g font-size="13" letter-spacing="1">
+    <text x="248" y="290" fill="#6b7d8f">[ <tspan fill="#6cd5e6">MCP</tspan> ]   [ <tspan fill="#6cd5e6">streamableHttp</tspan> ]   [ <tspan fill="#6cd5e6">SQLite</tspan> ]   [ <tspan fill="#6cd5e6">no deps</tspan> ]   [ <tspan fill="#7be38c">AGPL</tspan> ]</text>
+  </g>
+
+  
+  <line x1="726" y1="86" x2="726" y2="306" stroke="#1d2a36" stroke-width="1" stroke-dasharray="2 5"></line>
+
+  
+  
+  <circle cx="1086" cy="196" r="120" fill="url(#busGlow)"></circle>
+
+  
+  <g font-size="14">
+    
+    <rect x="772" y="112" width="118" height="30" rx="4" fill="#060a0f" stroke="#1d2a36" stroke-width="1.2"></rect>
+    <circle cx="788" cy="127" r="3" fill="#7be38c"></circle>
+    <text x="800" y="132" fill="#d6e1ea">claude</text>
+    
+    <rect x="772" y="181" width="118" height="30" rx="4" fill="#060a0f" stroke="#1d2a36" stroke-width="1.2"></rect>
+    <circle cx="788" cy="196" r="3" fill="#7be38c"></circle>
+    <text x="800" y="201" fill="#d6e1ea">openai</text>
+    
+    <rect x="772" y="250" width="118" height="30" rx="4" fill="#060a0f" stroke="#1d2a36" stroke-width="1.2"></rect>
+    <circle cx="788" cy="265" r="3" fill="#7be38c"></circle>
+    <text x="800" y="270" fill="#d6e1ea">gemini</text>
+  </g>
+
+  
+  <g fill="none" stroke="#6cd5e6" stroke-width="1.6" opacity="0.55">
+    <path d="M890,127 C968,127 1006,196 1082,196"></path>
+    <path d="M890,196 C968,196 1006,196 1082,196"></path>
+    <path d="M890,265 C968,265 1006,196 1082,196"></path>
+  </g>
+  
+  <g fill="#8be1ef">
+    <circle r="3">
+      
+      
+    </circle>
+    <circle r="3">
+      
+      
+    </circle>
+    <circle r="3">
+      
+      
+    </circle>
+  </g>
+
+  
+  <line x1="1086" y1="96" x2="1086" y2="296" stroke="url(#busLine)" stroke-width="2.5" stroke-linecap="round"></line>
+  <g stroke="#6cd5e6" stroke-width="1.5" opacity="0.5" stroke-linecap="round">
+    <line x1="1078" y1="96" x2="1094" y2="96"></line>
+    <line x1="1078" y1="296" x2="1094" y2="296"></line>
+  </g>
+
+  
+  <g fill="none" stroke="#6cd5e6">
+    <circle cx="1086" cy="196" r="24" stroke-width="1.5" opacity="0.45"></circle>
+    <circle cx="1086" cy="196" r="44" stroke-width="1.2" opacity="0.25"></circle>
+    <circle cx="1086" cy="196" r="66" stroke-width="1" opacity="0.12"></circle>
+    
+    <circle cx="1086" cy="196" r="10" stroke-width="2">
+      
+      
+    </circle>
+  </g>
+  
+  <circle cx="1086" cy="196" r="8" fill="#030d14" stroke="#8be1ef" stroke-width="2"></circle>
+  <circle cx="1086" cy="196" r="3.2" fill="#8be1ef"></circle>
+
+  
+  <text x="1086" y="330" font-size="12" fill="#6b7d8f" text-anchor="middle" letter-spacing="1.5">[ agent bus ]</text>
+
+  
+  <g stroke="#6cd5e6" stroke-width="1.5" opacity="0.6">
+    <path d="M28,40 L28,28 L40,28" fill="none"></path>
+    <path d="M1252,40 L1252,28 L1240,28" fill="none"></path>
+    <path d="M28,320 L28,332 L40,332" fill="none"></path>
+    <path d="M1252,320 L1252,332 L1240,332" fill="none"></path>
+  </g>
+</svg>
