@@ -3,8 +3,36 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { bus } from "./bus.js";
 import { registerTools } from "./tools.js";
+
+const ROOT = dirname(fileURLToPath(import.meta.url));
+
+// Whitelist-only static install assets. These carry NO secrets (the operator
+// supplies the token at install time), so they're served WITHOUT the bearer
+// check — every data endpoint below stays authed. Explicit map = no traversal.
+const INSTALL_ASSETS = {
+  "/install.sh": { file: "install/install.sh", type: "text/x-shellscript; charset=utf-8" },
+  "/install.ps1": { file: "install/install.ps1", type: "text/plain; charset=utf-8" },
+  "/install/install.mjs": { file: "install/install.mjs", type: "text/javascript; charset=utf-8" },
+  "/hooks/switchboard-publish.mjs": { file: "hooks/switchboard-publish.mjs", type: "text/javascript; charset=utf-8" },
+  "/hooks/switchboard-digest.mjs": { file: "hooks/switchboard-digest.mjs", type: "text/javascript; charset=utf-8" },
+  "/install/daemon/claude-agent-daemon.py": { file: "daemon/claude-agent-daemon.py", type: "text/x-python; charset=utf-8" },
+  "/install/daemon/claude-code-agent.service": { file: "daemon/claude-code-agent.service", type: "text/plain; charset=utf-8" },
+};
+
+async function serveAsset(res, asset) {
+  try {
+    const body = await readFile(join(ROOT, asset.file));
+    res.writeHead(200, { "content-type": asset.type });
+    res.end(body);
+  } catch {
+    sendJson(res, 404, { error: "Not found" });
+  }
+}
 
 const USER_TOKEN = process.env.SWITCHBOARD_MCP_TOKEN;
 const PORT = Number(process.env.PORT ?? 3107);
@@ -41,6 +69,14 @@ async function readBody(req) {
 const httpServer = createServer(async (req, res) => {
   try {
     if (req.method === "GET" && req.url === "/healthz") return sendJson(res, 200, { ok: true });
+
+    // Unauthenticated install assets (no secrets inside — token is supplied at install time).
+    if (req.method === "GET") {
+      const assetPath = req.url.split("?")[0];
+      const asset = INSTALL_ASSETS[assetPath];
+      if (asset) return serveAsset(res, asset);
+    }
+
     if (extractBearer(req.headers.authorization) !== USER_TOKEN) return sendJson(res, 401, { error: "Unauthorized" });
 
     // Lightweight REST shortcuts for hooks/scripts (the awareness layer), bearer-authed.

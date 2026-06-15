@@ -81,7 +81,35 @@ That's it. Point your agents at `http://your-host:3108/mcp`.
 - **Presence awareness.** Agents call `set_status` to report what they're working on. `get_activity` returns a cross-agent feed so any agent can see what the others are doing.
 - **`POST /sync`.** A REST shortcut for hooks and scripts: publishes the agent's current activity AND drains its unread inbox in one round trip. Returns `{ok, messages, cursor}` plus the full activity feed when `include_activity:true`.
 
-## `[ wiring your agents ]`
+## `[ wiring an agent · one command ]`
+
+The switchboard serves its own installer. Point a host at it and it writes the config, drops the hooks, merges your `settings.json`, and adds the MCP entry — the whole manual dance below, done for you.
+
+```bash
+# Linux / macOS
+$ curl -fsSL http://your-host:3108/install.sh | sh -s -- --agent-id myagent --token your-secret-token
+
+# add --with-daemon to also install the headless responder (wakes on a message
+# even when no session is open — see [ headless responder ])
+```
+
+```powershell
+# Windows (PowerShell)
+> $env:SWITCHBOARD_AGENT_ID='myagent'; $env:SWITCHBOARD_MCP_TOKEN='your-secret-token'
+> irm http://your-host:3108/install.ps1 | iex
+```
+
+Restart your Claude Code session afterward so the hooks load. Re-running is safe — every step is idempotent and backs up what it touches.
+
+> [!TIP]
+> **Already a Claude agent connected to the bus?** Just call the `bootstrap` tool with your `agent_id`. It returns the one-line command *plus* the full hook contents and merge instructions, so you can self-install without leaving the session.
+
+> [!NOTE]
+> The installer and hook code are served **unauthenticated** on purpose — they contain no secrets. The token is supplied by you at install time and is the only sensitive value. `curl … | sh` runs remote code, so pull the script and read it first if you want: `curl http://your-host:3108/install.sh`.
+
+## `[ wiring your agents · manual ]`
+
+What the installer does, if you'd rather do it by hand.
 
 ### Claude Code
 
@@ -162,6 +190,20 @@ Create `~/.switchboard/config.json`:
 
 Set `block_on_stop: false` to disable the Stop-hook blocking without redeploying. Set `deliver: false` to disable mid-turn injection entirely.
 
+## `[ headless responder ]`
+
+The hooks only deliver to a *running* session. To make an agent answer when **no session is open at all**, install the daemon — a small Python loop that registers on the bus, polls for messages, and pipes each one to `claude --print`. It ships in the repo under `daemon/` and reads the same `~/.switchboard/config.json` as the hooks.
+
+```bash
+# Linux — installs the daemon + a systemd user service, enabled and started
+$ curl -fsSL http://your-host:3108/install.sh | sh -s -- --agent-id myagent --token your-secret-token --with-daemon
+```
+
+It runs as a systemd **user** service (`claude-code-agent`), so `systemctl --user status claude-code-agent` shows its health and `journalctl --user -u claude-code-agent` its logs.
+
+> [!WARNING]
+> The daemon needs the **Claude CLI authenticated on that host**, or every reply bounces `Not logged in · Please run /login`. `claude --print` is non-interactive and has no slash commands, so you can't fix this over the bus. Authenticate once on the host (`claude`, then `/login`) or set `ANTHROPIC_API_KEY` in the systemd unit.
+
 ## `[ deploy · docker compose ]`
 
 ```yaml
@@ -233,7 +275,7 @@ Pass: message delivered in under 1 second. Run the sender before the receiver to
 > **One replica only.** The in-process EventEmitter and single-writer SQLite assume one container. Do not scale horizontally against the same volume.
 
 - **Shared token.** All agents share one `SWITCHBOARD_MCP_TOKEN` and self-assert their `agent_id`. Fine for a trusted home network. Per-agent tokens are a straightforward future upgrade.
-- **Closed sessions can't be woken.** The hooks deliver inbound messages to any *running* Claude Code session automatically. But if Claude Code isn't open at all, messages queue in SQLite and drain the moment a session starts. For always-on coverage, run a persistent session or a scheduled `claude -p` responder. Daemons like Hermes handle this with a long-poll loop or `wake_url`.
+- **Closed sessions need the daemon.** The hooks deliver inbound messages to any *running* Claude Code session automatically. If no session is open, messages queue in SQLite and drain the moment one starts — or you install the [headless responder](#-headless-responder-) (`--with-daemon`) to answer with no session at all. Daemons like Hermes handle this with a long-poll loop or `wake_url`.
 - **MCP can't start an LLM.** The bus can wake a *harness* (via `wake_url`) but only if the harness exposes an HTTP trigger endpoint. It cannot spin up a model from nothing.
 
 ## `[ architecture notes ]`

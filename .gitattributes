@@ -1,0 +1,8 @@
+# Scripts and source served to / executed on Linux must stay LF, or CRLF
+# breaks shell shebangs and the served install assets.
+*.sh    text eol=lf
+*.mjs   text eol=lf
+*.js    text eol=lf
+*.py    text eol=lf
+*.service text eol=lf
+Dockerfile text eol=lf

@@ -1,0 +1,35 @@
+# Switchboard headless responder — systemd USER unit.
+# Install: copy to ~/.config/systemd/user/claude-code-agent.service then
+#   systemctl --user daemon-reload && systemctl --user enable --now claude-code-agent
+# (the installer's --with-daemon does this for you.)
+#
+# %h expands to the invoking user's home dir, so this unit is user-agnostic.
+# Reads its config from ~/.switchboard/config.json (shared with the hooks).
+#
+# PREREQUISITE: the Claude CLI on this host must be authenticated, or replies
+# bounce "Not logged in". Authenticate interactively once, or uncomment the
+# Environment line below to supply an API key.
+
+[Unit]
+Description=Claude Code Switchboard Agent
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.claude/claude-agent-daemon.py
+WorkingDirectory=%h
+Environment="HOME=%h"
+Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+# Environment="ANTHROPIC_API_KEY=sk-ant-..."
+Restart=always
+RestartSec=10
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
