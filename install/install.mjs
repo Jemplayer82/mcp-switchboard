@@ -197,8 +197,10 @@ async function installDaemon() {
   } else {
     try {
       execSync("systemctl --user daemon-reload", { stdio: "inherit" });
-      execSync("systemctl --user enable --now claude-code-agent", { stdio: "inherit" });
-      log("  → daemon enabled and started");
+      execSync("systemctl --user enable claude-code-agent", { stdio: "inherit" });
+      // restart (not just enable --now) so re-running the installer reloads updated daemon code
+      execSync("systemctl --user restart claude-code-agent", { stdio: "inherit" });
+      log("  → daemon enabled and (re)started");
     } catch {
       log("  ! could not start via systemd — start manually: python3 ~/.claude/claude-agent-daemon.py");
     }
