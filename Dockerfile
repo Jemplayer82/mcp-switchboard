@@ -12,6 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY server.js bus.js tools.js schema.sql package.json ./
+# hooks/, install/, daemon/ are served as static install assets and read by the
+# `bootstrap` MCP tool — they must be present in the runtime image.
+COPY hooks ./hooks
+COPY install ./install
+COPY daemon ./daemon
 ENV PORT=3107
 EXPOSE 3107
 VOLUME ["/data"]

@@ -1,8 +1,18 @@
 // tools.js — registers every agentbus tool over the shared bus singleton.
 import { z } from "zod";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_BASE = process.env.SWITCHBOARD_PUBLIC_BASE || "http://192.168.7.50:3108";
 
 const ok = (obj) => ({ content: [{ type: "text", text: JSON.stringify(obj) }] });
 const fail = (msg) => ({ content: [{ type: "text", text: String(msg) }], isError: true });
+
+function readAsset(rel) {
+  try { return readFileSync(join(ROOT, rel), "utf8"); } catch { return null; }
+}
 
 export function registerTools(server, bus) {
   server.registerTool(
@@ -136,5 +146,65 @@ export function registerTools(server, bus) {
       inputSchema: { since_id: z.number().optional(), limit: z.number().max(200).default(50), agent_id: z.string().optional() },
     },
     async (a) => ok(bus.getActivity(a))
+  );
+
+  server.registerTool(
+    "bootstrap",
+    {
+      description:
+        "Self-install kit for wiring THIS agent into the switchboard. Returns the one-line install command for your platform PLUS the full hook file contents, target paths, and settings.json merge — so you can either run the one-liner (via your shell) or write the files yourself. Pass your agent_id; pass base if it differs from the default host. After installing, restart your session so the hooks load.",
+      inputSchema: {
+        agent_id: z.string().describe("The stable id to register this agent under, e.g. 'billy'"),
+        platform: z.enum(["windows", "unix"]).optional().describe("Defaults to unix"),
+        base: z.string().optional().describe("Switchboard base URL you connected to (default the LAN host)"),
+        token: z.string().optional().describe("Bearer token; omit to get a <TOKEN> placeholder in the command"),
+      },
+    },
+    async ({ agent_id, platform = "unix", base, token }) => {
+      const b = (base || DEFAULT_BASE).replace(/\/+$/, "");
+      const tok = token || "<SWITCHBOARD_MCP_TOKEN>";
+      const publish = readAsset("hooks/switchboard-publish.mjs");
+      const digest = readAsset("hooks/switchboard-digest.mjs");
+      if (!publish || !digest) return fail("Hook assets not found in image — rebuild with hooks/ copied in.");
+
+      const oneLiner =
+        platform === "windows"
+          ? `$env:SWITCHBOARD_AGENT_ID='${agent_id}'; $env:SWITCHBOARD_MCP_TOKEN='${tok}'; irm ${b}/install.ps1 | iex`
+          : `curl -fsSL ${b}/install.sh | sh -s -- --agent-id ${agent_id} --token ${tok}`;
+
+      const pub = `node "~/.claude/hooks/switchboard-publish.mjs"`;
+      const dig = `node "~/.claude/hooks/switchboard-digest.mjs"`;
+
+      return ok({
+        agent_id,
+        base: b,
+        install_command: oneLiner,
+        note: "Easiest path: run install_command. To self-install instead, write the files below, then restart your session.",
+        manual: {
+          config: {
+            path: "~/.switchboard/config.json",
+            content: { base: b, token: tok, agent_id, name: agent_id, inbound: { deliver: true, block_on_stop: true } },
+          },
+          hooks: [
+            { path: "~/.claude/hooks/switchboard-publish.mjs", content: publish },
+            { path: "~/.claude/hooks/switchboard-digest.mjs", content: digest },
+          ],
+          settings_merge: {
+            path: "~/.claude/settings.json",
+            hooks: {
+              SessionStart: [{ hooks: [{ type: "command", command: dig }] }],
+              UserPromptSubmit: [{ hooks: [{ type: "command", command: dig }] }],
+              PostToolUse: [{ matcher: "", hooks: [{ type: "command", command: pub }] }],
+              Stop: [{ hooks: [{ type: "command", command: pub }] }],
+            },
+            note: "Merge these into existing event arrays — do not clobber other hooks.",
+          },
+          mcp_entry: {
+            path: "~/.claude.json mcpServers.switchboard",
+            content: { type: "http", url: `${b}/mcp`, headers: { Authorization: `Bearer ${tok}` } },
+          },
+        },
+      });
+    }
   );
 }

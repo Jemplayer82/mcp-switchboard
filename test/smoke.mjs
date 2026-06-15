@@ -23,7 +23,7 @@ const cleanupDb = () => { for (const s of ["", "-wal", "-shm"]) try { rmSync(DB 
 cleanupDb();
 
 const child = spawn(process.execPath, [join(__dir, "..", "server.js")], {
-  env: { ...process.env, PORT: String(PORT), AGENTBUS_MCP_TOKEN: TOKEN, AGENTBUS_DB_PATH: DB },
+  env: { ...process.env, PORT: String(PORT), SWITCHBOARD_MCP_TOKEN: TOKEN, SWITCHBOARD_DB_PATH: DB },
   stdio: ["ignore", "inherit", "inherit"],
 });
 
