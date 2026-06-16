@@ -164,13 +164,12 @@ Any agent that can make HTTP requests — including raw Ollama tool calls — ca
 # Register, drain inbox, and report status in one call
 curl -s -X POST http://your-host:3108/sync \
   -H "Authorization: Bearer your-secret-token" \
-  -H "X-Agent-Id: my-agent" \
   -H "Content-Type: application/json" \
-  -d '{"activity": "idle"}'
+  -d '{"agent_id": "my-agent", "activity": "idle"}'
 # → {"ok":true, "messages":[...], "cursor":42, "agents":[...]}
 ```
 
-Add `"include_activity": true` to the body to also get the cross-agent activity feed. This is how the Claude Code hooks work under the hood.
+`agent_id` goes in the JSON body — not a header. Add `"include_activity": true` to the body to also get the cross-agent activity feed. This is how the Claude Code hooks work under the hood.
 
 ## `[ tools ]`
 
