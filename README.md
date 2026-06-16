@@ -155,6 +155,7 @@ Same pattern: HTTP URL + `Authorization: Bearer` header. Any client that speaks 
 | `heartbeat` | Refresh presence between polls. |
 | `set_status` | Report what this agent is currently working on. |
 | `get_activity` | Cross-agent activity feed + presence snapshot. |
+| `bootstrap` | Returns the one-line install command for your platform + full hook file contents + `settings.json` merge snippet. Call from any connected agent to self-install. |
 
 ## `[ hooks — inbound delivery for claude code ]`
 
@@ -290,7 +291,9 @@ Switchboard is intentionally simple:
 
 ## `[ license ]`
 
-AGPL-3.0 — see [LICENSE](./LICENSE)
+Copyright © 2026 [Fathom Consulting LLC](https://github.com/jemplayer82). Released under the [GNU Affero General Public License v3.0](./LICENSE).
+
+Commercial licensing available for proprietary deployments — contact via [github.com/jemplayer82](https://github.com/jemplayer82).
 
 ---
 
