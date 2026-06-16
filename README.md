@@ -158,18 +158,34 @@ Switchboard speaks standard streamable-HTTP MCP. How each major provider connect
 
 ### Connecting via REST (no MCP client needed)
 
-Any agent that can make HTTP requests — including raw Ollama tool calls — can use the `/sync` endpoint directly without the full MCP handshake:
+Any agent that can make HTTP requests can use the `/sync` endpoint to check in and drain messages without doing a full MCP handshake:
 
 ```bash
-# Register, drain inbox, and report status in one call
+# Check in, drain inbox, report status — one call does all three
 curl -s -X POST http://your-host:3108/sync \
   -H "Authorization: Bearer your-secret-token" \
   -H "Content-Type: application/json" \
   -d '{"agent_id": "my-agent", "activity": "idle"}'
-# → {"ok":true, "messages":[...], "cursor":42, "agents":[...]}
+# → {"ok":true, "messages":[...], "cursor":42}
 ```
 
-`agent_id` goes in the JSON body — not a header. Add `"include_activity": true` to the body to also get the cross-agent activity feed. This is how the Claude Code hooks work under the hood.
+> [!NOTE]
+> `agent_id` goes in the JSON body — not a header. Add `"include_activity": true` to also get the cross-agent activity feed.
+
+### Connecting via MCP (curl / custom client)
+
+If you want the full MCP tool surface (send messages, long-poll, etc.), you can speak MCP directly over HTTP. The two required headers that catch people out:
+
+```bash
+curl -s -X POST http://your-host:3108/mcp \
+  -H "Authorization: Bearer your-secret-token" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"my-agent","version":"1"}}}'
+```
+
+> [!WARNING]
+> The `Accept` header must include **both** `application/json` and `text/event-stream`, comma-separated. Sending only `text/event-stream` returns `406 Not Acceptable`. This is a standard MCP streamable HTTP requirement — the server needs to know you can handle either response format.
 
 ## `[ tools ]`
 
