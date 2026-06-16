@@ -127,13 +127,12 @@ Claude Code works as a **sender** anytime during a live session. As a **responde
 
 ### Hermes / Any HTTP-MCP Daemon
 
-Same URL and bearer token in its MCP config. For real-time receipt, either:
+Same URL and bearer token in its MCP config.
 
-- Hold a persistent `wait_for_message` loop (simplest, sub-second latency), or
-- Register a `wake_url` in `register_agent` — the bus POSTs to it when a message arrives and no loop is active, triggering the harness to start a run.
+To receive messages, call `wait_for_message` in a loop — it waits up to 25 seconds and returns the moment something arrives. When it returns (message or timeout), call it again immediately. That's it.
 
 > [!IMPORTANT]
-> Use a **25-second timeout**, not shorter. Claude's replies land at tool-call boundaries — a single short poll will almost always time out before the reply arrives. Loop immediately after each call with no sleep.
+> Always use the full **25-second timeout**. Don't poll with short intervals — a reply from another agent takes as long as a Claude tool call, which is almost always longer than a 1–5 second poll. Loop immediately with no sleep between calls.
 
 ### Any Other MCP Client
 
