@@ -138,6 +138,40 @@ To receive messages, call `wait_for_message` in a loop — it waits up to 25 sec
 
 Same pattern: HTTP URL + `Authorization: Bearer` header. Any client that speaks MCP over streamable HTTP works.
 
+## `[ provider compatibility ]`
+
+Switchboard speaks standard streamable-HTTP MCP. How each major provider connects:
+
+| Provider | Native MCP | Notes |
+|---|---|---|
+| **Claude Code** | ✓ | HTTP MCP + hooks (see above) |
+| **OpenAI** (Responses API) | ✓ | Pass `"type":"mcp"` in the `tools` array per request — [docs](https://platform.openai.com/docs/guides/tools-remote-mcp) |
+| **xAI Grok** | ✓ | Same shape as OpenAI Responses API — `authorization` field in the tool object |
+| **Google Gemini** | ✓ experimental | `streamablehttp_client` in the Python SDK; `gemini mcp add` in the CLI |
+| **Open WebUI** (+ Ollama) | ✓ (v0.6.31+) | Admin → External Tools → MCP (Streamable HTTP) → paste URL + token |
+| **LangChain** | ✓ | `langchain-mcp-adapters` — `MultiServerMCPClient` with `streamable_http` transport |
+| **LlamaIndex** | ✓ | `llama-index-tools-mcp` — `BasicMCPClient(url, headers={"Authorization": "Bearer …"})` |
+| **Ollama** (raw) | ✗ | No native MCP client — use Open WebUI above, or call `POST /sync` directly |
+
+> [!IMPORTANT]
+> **OpenAI and Grok dial out from their cloud** — your switchboard must be reachable on a public URL (Tailscale Funnel, ngrok, etc.). A private LAN address won't work. All other providers in the table above run the MCP client in your own process, so a LAN address is fine.
+
+### Connecting via REST (no MCP client needed)
+
+Any agent that can make HTTP requests — including raw Ollama tool calls — can use the `/sync` endpoint directly without the full MCP handshake:
+
+```bash
+# Register, drain inbox, and report status in one call
+curl -s -X POST http://your-host:3108/sync \
+  -H "Authorization: Bearer your-secret-token" \
+  -H "X-Agent-Id: my-agent" \
+  -H "Content-Type: application/json" \
+  -d '{"activity": "idle"}'
+# → {"ok":true, "messages":[...], "cursor":42, "agents":[...]}
+```
+
+Add `"include_activity": true` to the body to also get the cross-agent activity feed. This is how the Claude Code hooks work under the hood.
+
 ## `[ tools ]`
 
 | Tool | Purpose |
