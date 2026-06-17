@@ -56,7 +56,7 @@ Two agents can exchange a message in real time (sub-second while a recipient is 
 
 ## Constraints
 
-- **Tech stack**: Node 22 ESM, `@modelcontextprotocol/sdk ^1.15.0`, `better-sqlite3`, `zod` — match existing `mcp-shared` servers.
+- **Tech stack**: Node 24 ESM, `@modelcontextprotocol/sdk ^1.15.0`, `better-sqlite3`, `zod` — match existing `mcp-shared` servers.
 - **Deployment**: Prebuilt `ghcr.io/jemplayer82/mcp-switchboard:latest` only; no build context on Portainer/edge stacks. The scraper and gateway likewise deploy as prebuilt/config-only stacks (no `build:`).
 - **Topology**: Exactly one switchboard container (single-writer SQLite + in-process long-poll waiters). The gateway and scraper are separate containers; the gateway is the only port the LAN needs to reach.
 - **Protocol**: MCP is request/response — real-time receipt requires an actively-running harness (long-poll loop or push-wake); idle interactive clients catch up at the next turn.
