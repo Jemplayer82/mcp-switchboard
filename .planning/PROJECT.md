@@ -8,16 +8,18 @@ A real-time inter-agent switchboard delivered as one centralized streamable-HTTP
 
 Two agents can exchange a message in real time (sub-second while a recipient is actively waiting) with zero per-agent custom plumbing — wiring a new agent in is one HTTP MCP config line.
 
-## Current Milestone: v1.1 Supergateway Fronting + Playwright Scraper
+## Current Milestone: v1.2 Headless Full-Context Channel Responder
 
-**Goal:** Put every MCP server behind one supergateway on the Web Server (`192.168.7.50:8000`) so all agents reach them via a single host:port, and add browser scraping by wrapping Microsoft's official `@playwright/mcp` behind that gateway.
+**Goal:** Replace the cold spawn-and-die daemon (`claude-agent-daemon.py`) with one persistent `claude --channels` session on OpenClaw — fronted by a Node `switchboard-channel` MCP bridge — so bus agents get real-time, context-keeping replies even when no interactive session is open.
 
 **Target features:**
-- Supergateway on `:8000` path-routes inbound MCP to ≥2 backends (switchboard + scraper); one host:port for everything, prebuilt/config-only stack
-- Switchboard reachable behind the gateway at a stable path with bearer auth preserved; redeployed from current `main` to clear the stale-build drift
-- Playwright web scraper: `@playwright/mcp` wrapped as streamable-HTTP behind the gateway, browsers baked into the image
-- Clients (Claude Code + others) rewired to the gateway endpoints — adding an agent stays one config line
-- Planning/deployment drift reconciled (mcp-agentbus→mcp-switchboard, retire dead `agentbus` stack id 63 / `:3108` references)
+- Verification spike (gates the milestone): prove a headless `claude --channels` session stays alive while idle and autonomously fires a turn on a pushed channel event — no TTY, OpenClaw `claude` 2.1.179
+- `switchboard-channel` MCP bridge (Node, no bun): long-polls the bus, injects each message as a `claude/channel` event, replies via a tool back to the sender; mandatory sender allowlist
+- systemd user unit for the persistent channel session; resolve the inbox-drain collision with the existing `claude-code-agent` daemon (dedicated agent id vs. retire the cold daemon)
+- Hourly context management — true `/compact` if drivable, else hourly session rotation via a systemd timer
+- Security audit — channels inject untrusted bus content straight into a `--dangerously-skip-permissions` session; prompt-injection is the headline threat
+
+**Deferred:** v1.1 Supergateway Fronting + Playwright Scraper — never started; ROADMAP.md + this history retain it, resumable as a future milestone.
 
 ## Requirements
 
@@ -34,9 +36,14 @@ Two agents can exchange a message in real time (sub-second while a recipient is 
 - [ ] Presence + push-wake so always-on daemons auto-respond without manual poking
 - [ ] Ambient awareness layer — agents self-publish activity and auto-pull a digest so they track each other without the user relaying
 - [ ] Deployed into the `mcp-shared` Portainer stack and wired to Claude Code + Hermes
-- [ ] (v1.1) One supergateway on `:8000` fronts every MCP server via path routing — switchboard + scraper reachable at one host:port
-- [ ] (v1.1) Playwright web scraper (`@playwright/mcp`) wrapped as HTTP behind the gateway — agents navigate + extract page content over MCP
-- [ ] (v1.1) Switchboard redeployed from `main` behind the gateway; clients rewired to gateway endpoints; planning/deploy drift reconciled
+- [ ] (v1.1 — deferred) One supergateway on `:8000` fronts every MCP server via path routing — switchboard + scraper reachable at one host:port
+- [ ] (v1.1 — deferred) Playwright web scraper (`@playwright/mcp`) wrapped as HTTP behind the gateway — agents navigate + extract page content over MCP
+- [ ] (v1.1 — deferred) Switchboard redeployed from `main` behind the gateway; clients rewired to gateway endpoints; planning/deploy drift reconciled
+- [ ] (v1.2) Headless `claude --channels` session answers the bus with full context while idle — verified to stay alive and fire on push with no TTY
+- [ ] (v1.2) `switchboard-channel` Node MCP bridge delivers bus messages as channel events and replies via a tool, with a sender allowlist
+- [ ] (v1.2) Persistent responder runs as a systemd user unit without colliding with the existing cold daemon's inbox
+- [ ] (v1.2) Responder context is bounded hourly (compaction or rotation) without dropping off the bus
+- [ ] (v1.2) Security audit clears the channel-injection path into the bypass-permissions session
 
 ### Out of Scope
 
@@ -93,4 +100,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-11 — milestone v1.1 (Supergateway Fronting + Playwright Scraper) started*
+*Last updated: 2026-06-16 — milestone v1.2 (Headless Full-Context Channel Responder) started; v1.1 (Supergateway + Scraper) deferred unstarted*
