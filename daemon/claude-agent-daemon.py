@@ -137,7 +137,7 @@ def process_message(msg: dict):
 
     try:
         result = subprocess.run(
-            [CFG["claude_bin"], "--print", "--no-session-persistence", "--bare", content],
+            [CFG["claude_bin"], "--print", "--no-session-persistence", content],
             capture_output=True,
             text=True,
             timeout=300,
