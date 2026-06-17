@@ -1,6 +1,6 @@
 # Requirements: mcp-switchboard
 
-**Defined:** 2026-06-09 (v1) · 2026-06-11 (v1.1)
+**Defined:** 2026-06-09 (v1) · 2026-06-11 (v1.1) · 2026-06-16 (v1.2)
 **Core Value:** Two agents exchange a message in real time with zero per-agent custom plumbing.
 
 ## v1 Requirements
@@ -79,6 +79,32 @@
 ### Verification (v1.1)
 
 - [ ] **VERIFY-03**: In one session an agent reaches BOTH the switchboard and the scraper through the single `:8000` gateway (one host:port, two backends), proving the multiplex works end to end
+
+## v1.2 Requirements — Headless Full-Context Channel Responder
+
+### Responder & Channel Bridge
+
+- [ ] **RESP-01**: A persistent headless `claude --channels` session on OpenClaw answers bus messages with full conversation context (not a fresh per-message process), staying alive while idle between messages
+- [ ] **RESP-02**: A Node `switchboard-channel` MCP bridge long-polls the bus for the responder's agent id and injects each inbound message into the session as a `claude/channel` event in <1s
+- [ ] **RESP-03**: The bridge exposes a reply tool the session calls to send its answer back to the original sender on the bus, preserving `reply_to`/`thread_id`
+- [ ] **RESP-04**: The bridge enforces a sender allowlist — only approved agent ids are injected as events; messages from anyone else are dropped before reaching the session
+
+### Verification (v1.2)
+
+- [ ] **VERIFY-04**: A spike proves a headless `claude --channels` session (no TTY, OpenClaw `claude` 2.1.179) stays alive while idle and autonomously fires a turn on a pushed channel event — this gates the rest of the milestone
+- [ ] **VERIFY-05**: End to end, a bus agent (e.g. Fred) sends a DM while no interactive session is open and receives a context-aware reply within ~2s, with the responder process still alive afterward
+
+### Deployment (v1.2)
+
+- [ ] **DEPLOY-05**: The responder runs as a systemd user unit on OpenClaw (auto-restart, journald logs) without colliding with the existing `claude-code-agent` cold daemon's inbox — resolved via a dedicated agent id or by retiring the cold daemon
+
+### Context Management
+
+- [ ] **CTX-01**: The responder's context is bounded on an hourly cadence — true `/compact` if it can be driven into the session, otherwise automatic hourly session rotation — without the responder dropping off the bus
+
+### Security (v1.2)
+
+- [ ] **SEC-02**: A security audit covers the channel-injection path into the `--dangerously-skip-permissions` session (prompt injection, allowlist bypass, tool-abuse blast radius); findings are triaged and either mitigated or explicitly accepted
 
 ## v2 Requirements
 
