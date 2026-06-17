@@ -7,10 +7,10 @@ last_updated: "2026-06-17T03:05:31.576Z"
 last_activity: 2026-06-17
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 20
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** Two agents exchange a message in real time (sub-second while a recipient is actively waiting) with zero per-agent custom plumbing — wiring a new agent is one HTTP MCP config line.
-**Current focus:** Phase 9 gate PASSED (GO) — building Phase 10 (switchboard-channel bridge)
+**Current focus:** Phases 9–10 done; Phase 11 — deploy as systemd unit + cut over to Billy
 
 ## Current Position
 
-Phase: 10 — switchboard-channel MCP Bridge
+Phase: 11 — Persistent Deploy + Inbox-Collision Resolution
 Plan: —
-Status: Phase 9 gate cleared; building the bridge
-Last activity: 2026-06-16 — Phase 9 headless channel spike PASSED on OpenClaw (autonomous turn fired on push, survived 6.5min idle)
+Status: Bridge built & verified live; deploying as systemd unit, retiring cold daemon
+Last activity: 2026-06-16 — Phase 10 bridge verified live (BRIDGE-OK round-trip + allowlist drop) under test id Claude-rc-test
 
 ### Milestone v1.0 — Built & verified
 
@@ -47,8 +47,8 @@ Last activity: 2026-06-16 — Phase 9 headless channel spike PASSED on OpenClaw 
 ### Milestone v1.2 — In planning
 
 - Phase 9: Headless Channel Spike (Go/No-Go Gate) — ✅ COMPLETE (PASSED, GO)
-- Phase 10: switchboard-channel MCP Bridge — IN PROGRESS — **HERE**
-- Phase 11: Persistent Deploy + Inbox-Collision Resolution — NOT STARTED
+- Phase 10: switchboard-channel MCP Bridge — ✅ COMPLETE (verified live)
+- Phase 11: Persistent Deploy + Inbox-Collision Resolution — IN PROGRESS — **HERE**
 - Phase 12: Hourly Context Management — NOT STARTED
 - Phase 13: Security Audit + End-to-End Verify — NOT STARTED
 
