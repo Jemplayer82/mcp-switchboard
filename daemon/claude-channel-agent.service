@@ -1,0 +1,41 @@
+# Headless switchboard CHANNEL responder — systemd USER unit.
+# A persistent, full-context `claude --channels` session (vs. the cold
+# claude-code-agent daemon's per-message `claude --print`). Install:
+#   cp to ~/.config/systemd/user/claude-channel-agent.service
+#   systemctl --user daemon-reload && systemctl --user enable --now claude-channel-agent
+#
+# PREREQUISITE: Claude CLI authenticated (claude.ai OAuth, full scope) on this host,
+# workspace trust pre-accepted for CHANNEL_WORKDIR, and the switchboard-channel bridge
+# + .mcp.json present in CHANNEL_WORKDIR.
+#
+# AGENT-ID / collision (DEPLOY-05): SWITCHBOARD_CHANNEL_AGENT_ID below is the bus id
+# this responder long-polls. It MUST be the sole consumer of that id's inbox — either a
+# dedicated id, or the id the retired claude-code-agent daemon used (disable that unit first).
+
+[Unit]
+Description=Claude Code Switchboard Channel Responder (headless --channels)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/switchboard-channel
+Environment="HOME=%h"
+Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="TERM=xterm-256color"
+Environment="CHANNEL_WORKDIR=%h/switchboard-channel"
+# --- set these for your deployment (finalized in Phase 11) ---
+Environment="SWITCHBOARD_CHANNEL_AGENT_ID=__SET_IN_PHASE_11__"
+Environment="SWITCHBOARD_ALLOWED_SENDERS=__COMMA_LIST_SET_IN_PHASE_11__"
+ExecStart=/usr/bin/python3 %h/switchboard-channel/run-channel-session.py
+Restart=always
+RestartSec=10
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target
