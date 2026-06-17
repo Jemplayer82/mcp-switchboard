@@ -146,7 +146,7 @@ Replace the cold spawn-and-die daemon (`claude-agent-daemon.py`) with one persis
 
 ### Phases
 
-- [ ] **Phase 9: Headless Channel Spike (Go/No-Go Gate)** - Prove a headless `claude --channels` session stays alive idle and fires a turn on a pushed event — no TTY, OpenClaw 2.1.179 — before any bridge code is written
+- [x] **Phase 9: Headless Channel Spike (Go/No-Go Gate)** - Prove a headless `claude --channels` session stays alive idle and fires a turn on a pushed event — no TTY, OpenClaw 2.1.179 — before any bridge code is written ✅ PASSED 2026-06-16 (GO)
 - [ ] **Phase 10: switchboard-channel MCP Bridge** - Build the Node stdio MCP bridge that long-polls the bus, injects events into the channel session, and exposes a reply tool — with a mandatory sender allowlist
 - [ ] **Phase 11: Persistent Deploy + Inbox-Collision Resolution** - Ship the responder as a systemd user unit on OpenClaw and resolve the inbox-drain collision with the existing cold daemon
 - [ ] **Phase 12: Hourly Context Management** - Bound the responder's context on an hourly cadence via compaction or session rotation without dropping off the bus
