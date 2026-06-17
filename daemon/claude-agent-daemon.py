@@ -2,9 +2,10 @@
 """
 Switchboard headless responder daemon.
 
-Registers this host as an agent on the switchboard, polls for inbound messages,
-and answers each one by piping it to `claude --print` (non-interactive). Lets a
-CLOSED Claude session still respond to the bus — the wake-when-asleep path.
+Registers this host as an agent on the switchboard, waits for inbound messages
+via long-poll (sub-second delivery), and answers each one by piping it to
+`claude --print` (non-interactive). Lets a CLOSED Claude session still respond
+to the bus — the wake-when-asleep path.
 
 Config is shared with the Claude Code hooks: it reads ~/.switchboard/config.json
   { "base": "http://host:3108", "token": "...", "agent_id": "billy",
@@ -30,9 +31,6 @@ from typing import Optional
 import requests
 
 CONFIG_PATH = Path(os.path.expanduser("~/.switchboard/config.json"))
-
-POLL_INTERVAL = 3        # seconds between get_messages polls
-HEARTBEAT_INTERVAL = 30  # seconds between heartbeats
 
 logging.basicConfig(
     level=logging.INFO,
@@ -75,7 +73,7 @@ def load_config() -> dict:
 CFG = load_config()
 
 
-def mcp_call(method: str, params: dict) -> dict:
+def mcp_call(method: str, params: dict, http_timeout: int = 10) -> dict:
     """Send a single JSON-RPC call to the switchboard and return the result."""
     payload = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
     headers = {
@@ -83,7 +81,7 @@ def mcp_call(method: str, params: dict) -> dict:
         "Authorization": f"Bearer {CFG['token']}",
         "Accept": "application/json, text/event-stream",
     }
-    resp = requests.post(CFG["url"], json=payload, headers=headers, timeout=10)
+    resp = requests.post(CFG["url"], json=payload, headers=headers, timeout=http_timeout)
     resp.raise_for_status()
 
     # Response is SSE: "event: message\ndata: {...}\n\n"
@@ -101,8 +99,8 @@ def mcp_call(method: str, params: dict) -> dict:
     raise RuntimeError(f"Unexpected MCP response: {text!r}")
 
 
-def tool_call(name: str, arguments: dict) -> dict:
-    return mcp_call("tools/call", {"name": name, "arguments": arguments})
+def tool_call(name: str, arguments: dict, http_timeout: int = 10) -> dict:
+    return mcp_call("tools/call", {"name": name, "arguments": arguments}, http_timeout=http_timeout)
 
 
 def register():
@@ -110,16 +108,14 @@ def register():
     log.info("Registered: %s", result)
 
 
-def heartbeat():
-    tool_call("heartbeat", {"agent_id": CFG["agent_id"]})
-
-
-def get_messages(cursor: Optional[str]) -> tuple[list, Optional[str]]:
-    args: dict = {"agent_id": CFG["agent_id"], "limit": 10}
-    if cursor:
-        args["cursor"] = cursor
-    result = tool_call("get_messages", args)
-    return result.get("messages", []), result.get("cursor")
+def wait_for_message() -> list[dict]:
+    """Block up to 25s for a message. Returns immediately when one arrives."""
+    result = tool_call(
+        "wait_for_message",
+        {"agent_id": CFG["agent_id"], "timeout_seconds": 25},
+        http_timeout=30,  # must exceed the MCP-level timeout
+    )
+    return result.get("messages", [])
 
 
 def send_reply(to: str, content: str, thread_id: Optional[str] = None,
@@ -160,39 +156,19 @@ def process_message(msg: dict):
 def main():
     log.info("Switchboard daemon starting (agent_id=%s, base=%s)", CFG["agent_id"], CFG["base"])
     register()
-
-    cursor: Optional[str] = None
-    last_heartbeat = time.monotonic()
-
-    # Prime cursor so we don't replay old messages on startup
-    _, cursor = get_messages(cursor)
-    log.info("Ready. Polling for messages every %ds.", POLL_INTERVAL)
+    log.info("Ready. Listening for messages (long-poll, sub-second delivery).")
 
     while True:
-        now = time.monotonic()
-
-        # Heartbeat
-        if now - last_heartbeat >= HEARTBEAT_INTERVAL:
-            try:
-                heartbeat()
-                last_heartbeat = now
-            except Exception as exc:  # noqa: BLE001
-                log.warning("Heartbeat failed: %s", exc)
-
-        # Poll for messages
         try:
-            messages, new_cursor = get_messages(cursor)
-            if new_cursor:
-                cursor = new_cursor
+            messages = wait_for_message()
             for msg in messages:
                 try:
                     process_message(msg)
                 except Exception as exc:  # noqa: BLE001
                     log.error("Failed to process message %s: %s", msg.get("id"), exc)
         except Exception as exc:  # noqa: BLE001
-            log.warning("Poll failed: %s", exc)
-
-        time.sleep(POLL_INTERVAL)
+            log.warning("Poll error: %s — retrying in 5s", exc)
+            time.sleep(5)
 
 
 if __name__ == "__main__":
