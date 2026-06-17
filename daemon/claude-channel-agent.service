@@ -29,9 +29,17 @@ Environment="CHANNEL_WORKDIR=%h/switchboard-channel"
 #     claude-code-agent daemon is stopped+disabled so Billy's inbox has one consumer. ---
 Environment="SWITCHBOARD_CHANNEL_AGENT_ID=Billy"
 Environment="SWITCHBOARD_ALLOWED_SENDERS=Claude,Fred,Hermes,node24-upgrade,claude-code"
+# Phase 12: bound context hourly via in-session /compact (keeps a summary; no downtime).
+# Fallback if /compact ever wedges: drop this to 0 and uncomment RuntimeMaxSec below for
+# clean hourly session rotation (Restart=always respawns; ~seconds downtime).
+Environment="CHANNEL_COMPACT_INTERVAL_SEC=3600"
+# Phase 13 / M1: restrict tool surface (untrusted bus content can't run shell or read secrets).
+# Set to empty string only if you fully trust every allowlisted sender and want Billy to actuate.
+Environment="CHANNEL_DISALLOWED_TOOLS=Bash Edit Write MultiEdit NotebookEdit"
 ExecStart=/usr/bin/python3 %h/switchboard-channel/run-channel-session.py
 Restart=always
 RestartSec=10
+# RuntimeMaxSec=3900   # rotation fallback (slightly >1h so /compact runs first)
 KillMode=mixed
 KillSignal=SIGTERM
 TimeoutStopSec=30

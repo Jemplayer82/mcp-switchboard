@@ -11,6 +11,16 @@ import os, pty, fcntl, termios, struct, subprocess, select, time, sys
 WORKDIR = os.environ.get("CHANNEL_WORKDIR", os.path.expanduser("~/switchboard-channel"))
 LOG = os.environ.get("CHANNEL_LOG", os.path.join(WORKDIR, "session.log"))
 CLAUDE = os.environ.get("CLAUDE_BIN", os.path.expanduser("~/.local/bin/claude"))
+# Hourly context bounding: inject `/compact` into the live session every N seconds
+# (0 disables). Keeps continuity via a summary rather than a full reset; systemd restart
+# remains the fallback if /compact ever wedges the session.
+COMPACT_INTERVAL = int(os.environ.get("CHANNEL_COMPACT_INTERVAL_SEC", "3600"))
+# M1 (security): restrict the responder's tool surface so injected (untrusted) bus content
+# can't run shell, write files, or read local secrets. Space-separated; empty string = no
+# restriction (full tools — only do that if you trust every allowlisted sender completely).
+DISALLOWED_TOOLS = os.environ.get(
+    "CHANNEL_DISALLOWED_TOOLS", "Bash Edit Write MultiEdit NotebookEdit"
+).split()
 
 master, slave = os.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 50, 200, 0, 0))
@@ -19,9 +29,13 @@ env = dict(os.environ)
 env["PATH"] = os.path.expanduser("~/.local/bin") + ":" + env.get("PATH", "")
 env["TERM"] = "xterm-256color"
 
+cmd = [CLAUDE, "--dangerously-load-development-channels", "server:switchboard-channel",
+       "--dangerously-skip-permissions"]
+if DISALLOWED_TOOLS:
+    cmd += ["--disallowedTools", *DISALLOWED_TOOLS]
+
 p = subprocess.Popen(
-    [CLAUDE, "--dangerously-load-development-channels", "server:switchboard-channel",
-     "--dangerously-skip-permissions"],
+    cmd,
     stdin=slave, stdout=slave, stderr=slave, cwd=WORKDIR, env=env,
     preexec_fn=os.setsid, close_fds=True,
 )
@@ -29,6 +43,7 @@ os.close(slave)
 
 start = time.time()
 sent = 0
+last_compact = None
 with open(LOG, "ab", buffering=0) as log:
     log.write(("\n=== session start %s ===\n" % time.strftime("%Y-%m-%dT%H:%M:%S")).encode())
     while p.poll() is None:
@@ -36,7 +51,15 @@ with open(LOG, "ab", buffering=0) as log:
         if sent == 0 and el > 3:
             os.write(master, b"\r"); sent = 1          # confirm dev-channels dialog
         elif sent == 1 and el > 8:
-            os.write(master, b"\r"); sent = 2
+            os.write(master, b"\r"); sent = 2          # session initialized
+        elif sent == 2 and COMPACT_INTERVAL > 0:
+            now = time.time()
+            if last_compact is None:
+                last_compact = now                      # start the compaction clock post-init
+            elif now - last_compact >= COMPACT_INTERVAL:
+                os.write(master, b"/compact\r")
+                log.write(("\n=== injected /compact %s ===\n" % time.strftime("%Y-%m-%dT%H:%M:%S")).encode())
+                last_compact = now
         r, _, _ = select.select([master], [], [], 1.0)
         if master in r:
             try:
