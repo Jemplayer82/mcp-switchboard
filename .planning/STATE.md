@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Headless Full-Context Channel Responder
-status: complete
-last_updated: "2026-06-17T04:00:00.000Z"
-last_activity: 2026-06-16
+status: Awaiting next milestone
+stopped_at: v1.2 complete — Billy live as the full-context bus responder
+last_updated: "2026-06-17T04:13:16.416Z"
+last_activity: 2026-06-17 — Milestone v1.2 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
@@ -24,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-16)
 
 ## Current Position
 
-Phase: All complete (9–13)
+Phase: Milestone v1.2 complete
 Plan: —
-Status: Milestone v1.2 complete — running lifecycle (audit → complete → cleanup)
-Last activity: 2026-06-16 — Phase 13 done (security audit + mitigations live; real-Fred E2E verified)
+Status: Awaiting next milestone
+Last activity: 2026-06-17 — Milestone v1.2 completed and archived
 
 ### Milestone v1.0 — Built & verified
 
@@ -118,6 +119,10 @@ Items acknowledged and carried forward from previous milestone close:
 ## Session Continuity
 
 Last session: 2026-06-16
-Stopped at: Phase 9 gate PASSED; building Phase 10 (switchboard-channel bridge)
+Stopped at: v1.2 SHIPPED — all 5 phases complete, audited (PASSED), archived, tagged
 Resume file: None
-Next action: Phase 10 — finalize + deploy `switchboard-channel.mjs` bridge (staged at C:\tmp), then Phase 11 (systemd unit, retire cold daemon, run responder as Billy)
+Next action: `/gsd-new-milestone` to start the next milestone (e.g. v2 per-agent tokens / dashboard, or resume deferred v1.1 gateway+scraper)
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
