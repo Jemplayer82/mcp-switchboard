@@ -15,7 +15,7 @@
 // Inputs (flag OR env; flags win):
 //   --agent-id   SWITCHBOARD_AGENT_ID     (required)
 //   --token      SWITCHBOARD_MCP_TOKEN    (required)
-//   --base       SWITCHBOARD_BASE         (default http://192.168.7.50:3108)
+//   --base       SWITCHBOARD_BASE         (auto-templated by the server, or required)
 //   --name       SWITCHBOARD_AGENT_NAME   (default: agent-id)
 //   --with-daemon   --dry-run
 
@@ -24,7 +24,10 @@ import { homedir, platform } from "node:os";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 
-const DEFAULT_BASE = "http://192.168.7.50:3108";
+// Rewritten server-side at download time to the URL you fetched this from. If you
+// run this file directly (not via the server), pass --base / SWITCHBOARD_BASE.
+const TEMPLATED_BASE = "__SWITCHBOARD_BASE__";
+const DEFAULT_BASE = TEMPLATED_BASE.includes("SWITCHBOARD_BASE") ? "" : TEMPLATED_BASE;
 
 // ---- args ---------------------------------------------------------------
 function parseArgs(argv) {
@@ -50,9 +53,10 @@ const dryRun = !!args["dry-run"];
 const missing = [];
 if (!agentId) missing.push("--agent-id (or SWITCHBOARD_AGENT_ID)");
 if (!token) missing.push("--token (or SWITCHBOARD_MCP_TOKEN)");
+if (!base) missing.push("--base (or SWITCHBOARD_BASE) — e.g. http://my-switchboard:3107");
 if (missing.length) {
   console.error("✗ Missing required input:\n  " + missing.join("\n  "));
-  console.error("\nUsage: node install.mjs --agent-id <id> --token <token> [--base <url>] [--with-daemon] [--dry-run]");
+  console.error("\nUsage: node install.mjs --agent-id <id> --token <token> --base <url> [--with-daemon] [--dry-run]");
   process.exit(1);
 }
 

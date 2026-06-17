@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_BASE = process.env.SWITCHBOARD_PUBLIC_BASE || "http://192.168.7.50:3108";
+// Used by the `bootstrap` tool when the caller doesn't pass a base. Set
+// SWITCHBOARD_PUBLIC_BASE on the server so self-hosted instances emit their own URL.
+const DEFAULT_BASE = (process.env.SWITCHBOARD_PUBLIC_BASE || "http://localhost:3107").replace(/\/+$/, "");
 
 const ok = (obj) => ({ content: [{ type: "text", text: JSON.stringify(obj) }] });
 const fail = (msg) => ({ content: [{ type: "text", text: String(msg) }], isError: true });

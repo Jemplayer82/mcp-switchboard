@@ -48,23 +48,37 @@ One container. One URL. No broker, no Redis, no external dependencies. State liv
 
 ## `[ quick start ]`
 
+Self-host the whole thing on any Docker box. One command brings it up, generates a token, and prints the line your agents use to connect:
+
 ```bash
-$ docker run -d \
-    --name switchboard \
-    -p 3108:3107 \
-    -e SWITCHBOARD_MCP_TOKEN=your-secret-token \
-    -v switchboard-data:/data \
-    ghcr.io/jemplayer82/mcp-switchboard:latest
+$ git clone https://github.com/jemplayer82/mcp-switchboard && cd mcp-switchboard
+$ ./deploy/quickstart.sh          # Windows: .\deploy\quickstart.ps1
 ```
 
-Health check:
+Prefer to drive Compose yourself:
 
 ```bash
-$ curl -sf http://localhost:3108/healthz
+$ docker compose up -d
+$ docker compose logs switchboard   # shows the auto-generated token
+```
+
+Or a bare `docker run` — no config at all:
+
+```bash
+$ docker run -d --name switchboard \
+    -p 3107:3107 -v switchboard-data:/data \
+    ghcr.io/jemplayer82/mcp-switchboard:latest
+$ docker logs switchboard            # the token is printed here
+```
+
+No token? One is generated on first boot, persisted to the `/data` volume, and printed in the logs. Pin your own anytime with `-e SWITCHBOARD_MCP_TOKEN=…` (or `.env`).
+
+```bash
+$ curl -sf http://localhost:3107/healthz
 # → {"ok":true}
 ```
 
-That's it. Point your agents at `http://your-host:3108/mcp`.
+That's it. Point your agents at `http://your-host:3107/mcp` — or let the [one-command installer](#-wiring-an-agent--one-command-) do it.
 
 ## `[ how it works ]`
 
@@ -83,11 +97,11 @@ That's it. Point your agents at `http://your-host:3108/mcp`.
 
 ## `[ wiring an agent · one command ]`
 
-The switchboard serves its own installer. Point a host at it and it writes the config, drops the hooks, merges your `settings.json`, and adds the MCP entry — the whole manual dance below, done for you.
+The switchboard serves its own installer. Point a host at it and it writes the config, drops the hooks, merges your `settings.json`, and adds the MCP entry — the whole manual dance below, done for you. The base URL is baked into the script as it's served, so the agent targets the exact host it downloaded from — no IP to type.
 
 ```bash
 # Linux / macOS
-$ curl -fsSL http://your-host:3108/install.sh | sh -s -- --agent-id myagent --token your-secret-token
+$ curl -fsSL http://your-host:3107/install.sh | sh -s -- --agent-id myagent --token <token>
 
 # add --with-daemon to also install the headless responder (wakes on a message
 # even when no session is open — see [ headless responder ])
@@ -95,11 +109,11 @@ $ curl -fsSL http://your-host:3108/install.sh | sh -s -- --agent-id myagent --to
 
 ```powershell
 # Windows (PowerShell)
-> $env:SWITCHBOARD_AGENT_ID='myagent'; $env:SWITCHBOARD_MCP_TOKEN='your-secret-token'
-> irm http://your-host:3108/install.ps1 | iex
+> $env:SWITCHBOARD_AGENT_ID='myagent'; $env:SWITCHBOARD_MCP_TOKEN='<token>'
+> irm http://your-host:3107/install.ps1 | iex
 ```
 
-Restart your Claude Code session afterward so the hooks load. Re-running is safe — every step is idempotent and backs up what it touches.
+`<token>` is the value from your server's startup logs (or whatever you pinned). Restart your Claude Code session afterward so the hooks load. Re-running is safe — every step is idempotent and backs up what it touches.
 
 > [!TIP]
 > **Already a Claude agent connected to the bus?** Just call the `bootstrap` tool with your `agent_id`. It returns the one-line command *plus* the full hook contents and merge instructions, so you can self-install without leaving the session.
@@ -255,29 +269,24 @@ It runs as a systemd **user** service (`claude-code-agent`), so `systemctl --use
 
 ## `[ deploy · docker compose ]`
 
-```yaml
-services:
-  switchboard:
-    image: ghcr.io/jemplayer82/mcp-switchboard:latest
-    ports:
-      - "3108:3107"
-    environment:
-      - SWITCHBOARD_MCP_TOKEN=${SWITCHBOARD_MCP_TOKEN}
-    volumes:
-      - switchboard-data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:3107/healthz"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+The repo ships a ready-to-run [`docker-compose.yaml`](docker-compose.yaml). Everything is env-driven via `.env` (all optional — see [`.env.example`](.env.example)):
 
-volumes:
-  switchboard-data:
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SWITCHBOARD_MCP_TOKEN` | *auto-generated* | Bearer token every agent uses. Unset → generated on first boot, persisted to `/data`, printed in logs. |
+| `SWITCHBOARD_PORT` | `3107` | Host port to publish (container always listens on 3107). |
+| `SWITCHBOARD_PUBLIC_BASE` | *Host header* | Public URL agents reach you on. Only needed behind a reverse proxy / custom domain; otherwise auto-detected per request. |
+
+```bash
+$ cp .env.example .env      # optional — edit to pin a token / port / domain
+$ docker compose up -d
 ```
 
+> [!TIP]
+> Running behind a TLS reverse proxy or custom domain? Set `SWITCHBOARD_PUBLIC_BASE=https://switchboard.example.com` so the served install one-liner targets the public URL instead of the internal Host header.
+
 > [!IMPORTANT]
-> Set `SWITCHBOARD_MCP_TOKEN` in your environment or `.env` file. **Never commit it.**
+> If you pin `SWITCHBOARD_MCP_TOKEN` yourself, set it in `.env` or the environment — **never commit it.**
 
 ## `[ portainer deployment ]`
 

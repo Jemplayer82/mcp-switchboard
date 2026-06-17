@@ -3,14 +3,20 @@
 # Fetches install.mjs from the server and runs it with node. All real logic
 # lives in install.mjs; this just gathers inputs and downloads.
 #
-#   curl -fsSL http://192.168.7.50:3108/install.sh | sh
-#   curl -fsSL http://192.168.7.50:3108/install.sh | sh -s -- --agent-id billy --with-daemon
+#   curl -fsSL http://my-switchboard:3107/install.sh | sh
+#   curl -fsSL http://my-switchboard:3107/install.sh | sh -s -- --agent-id billy --with-daemon
+#
+# The server rewrites __SWITCHBOARD_BASE__ below to the URL you fetched this from,
+# so BASE is correct automatically. Override with SWITCHBOARD_BASE / --base.
 #
 # Inputs via env (SWITCHBOARD_BASE / SWITCHBOARD_AGENT_ID / SWITCHBOARD_MCP_TOKEN)
-# or flags; prompts for agent-id/token if still missing.
+# or flags; prompts for agent-id/token (and base, if not templated) if missing.
 set -e
 
-BASE="${SWITCHBOARD_BASE:-http://192.168.7.50:3108}"
+# __SWITCHBOARD_BASE__ is substituted server-side at download time.
+TEMPLATED_BASE="__SWITCHBOARD_BASE__"
+case "$TEMPLATED_BASE" in *SWITCHBOARD_BASE*) TEMPLATED_BASE="" ;; esac
+BASE="${SWITCHBOARD_BASE:-$TEMPLATED_BASE}"
 AGENT_ID="${SWITCHBOARD_AGENT_ID:-}"
 TOKEN="${SWITCHBOARD_MCP_TOKEN:-}"
 EXTRA=""
@@ -27,6 +33,7 @@ done
 BASE="${BASE%/}"
 
 # Read from the terminal, not the piped script, when run via `curl | sh`.
+if [ -z "$BASE" ];     then printf "Switchboard base URL: " > /dev/tty; read BASE < /dev/tty; BASE="${BASE%/}"; fi
 if [ -z "$AGENT_ID" ]; then printf "Agent id: " > /dev/tty; read AGENT_ID < /dev/tty; fi
 if [ -z "$TOKEN" ];    then printf "Switchboard token: " > /dev/tty; read TOKEN < /dev/tty; fi
 

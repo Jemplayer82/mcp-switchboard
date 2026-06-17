@@ -4,6 +4,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { bus } from "./bus.js";
@@ -11,22 +13,43 @@ import { registerTools } from "./tools.js";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 
+// Placeholder baked into the served install scripts; rewritten at serve-time to
+// the URL the client actually reached us on (see publicBase). This is what makes
+// `curl http://my-host:PORT/install.sh | sh` self-targeting — no hardcoded IPs.
+const BASE_PLACEHOLDER = "__SWITCHBOARD_BASE__";
+
 // Whitelist-only static install assets. These carry NO secrets (the operator
 // supplies the token at install time), so they're served WITHOUT the bearer
 // check — every data endpoint below stays authed. Explicit map = no traversal.
+// `template: true` assets get BASE_PLACEHOLDER rewritten to the request's base.
 const INSTALL_ASSETS = {
-  "/install.sh": { file: "install/install.sh", type: "text/x-shellscript; charset=utf-8" },
-  "/install.ps1": { file: "install/install.ps1", type: "text/plain; charset=utf-8" },
-  "/install/install.mjs": { file: "install/install.mjs", type: "text/javascript; charset=utf-8" },
+  "/install.sh": { file: "install/install.sh", type: "text/x-shellscript; charset=utf-8", template: true },
+  "/install.ps1": { file: "install/install.ps1", type: "text/plain; charset=utf-8", template: true },
+  "/install/install.mjs": { file: "install/install.mjs", type: "text/javascript; charset=utf-8", template: true },
   "/hooks/switchboard-publish.mjs": { file: "hooks/switchboard-publish.mjs", type: "text/javascript; charset=utf-8" },
   "/hooks/switchboard-digest.mjs": { file: "hooks/switchboard-digest.mjs", type: "text/javascript; charset=utf-8" },
   "/install/daemon/claude-agent-daemon.py": { file: "daemon/claude-agent-daemon.py", type: "text/x-python; charset=utf-8" },
   "/install/daemon/claude-code-agent.service": { file: "daemon/claude-code-agent.service", type: "text/plain; charset=utf-8" },
 };
 
-async function serveAsset(res, asset) {
+// The public base URL agents should use to reach us. Prefer an explicit override
+// (set this behind a reverse proxy / custom domain); otherwise derive it from the
+// request the client used — so self-hosters need zero base-URL config.
+function publicBase(req) {
+  const override = process.env.SWITCHBOARD_PUBLIC_BASE;
+  if (override) return override.replace(/\/+$/, "");
+  const proto = (req.headers["x-forwarded-proto"] || "http").split(",")[0].trim();
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  return host ? `${proto}://${host}` : "";
+}
+
+async function serveAsset(req, res, asset) {
   try {
-    const body = await readFile(join(ROOT, asset.file));
+    let body = await readFile(join(ROOT, asset.file), "utf8");
+    if (asset.template) {
+      const base = publicBase(req);
+      if (base) body = body.split(BASE_PLACEHOLDER).join(base);
+    }
     res.writeHead(200, { "content-type": asset.type });
     res.end(body);
   } catch {
@@ -34,13 +57,42 @@ async function serveAsset(res, asset) {
   }
 }
 
-const USER_TOKEN = process.env.SWITCHBOARD_MCP_TOKEN;
-const PORT = Number(process.env.PORT ?? 3107);
+// Resolve the bearer token: explicit env wins; else reuse a persisted token from
+// the data dir; else generate one, persist it (survives restarts via the volume),
+// and print it loudly. Lets `docker run … mcp-switchboard` work with zero config.
+function resolveToken() {
+  if (process.env.SWITCHBOARD_MCP_TOKEN) return process.env.SWITCHBOARD_MCP_TOKEN;
 
-if (!USER_TOKEN) {
-  console.error("[switchboard] SWITCHBOARD_MCP_TOKEN is required");
-  process.exit(1);
+  const dbPath = process.env.SWITCHBOARD_DB_PATH || "/data/switchboard.db";
+  const tokenFile = process.env.SWITCHBOARD_TOKEN_FILE || join(dirname(dbPath), "token");
+  try {
+    if (existsSync(tokenFile)) {
+      const t = readFileSync(tokenFile, "utf8").trim();
+      if (t) {
+        console.log(`[switchboard] using persisted token from ${tokenFile}`);
+        return t;
+      }
+    }
+  } catch { /* fall through to generate */ }
+
+  const tok = randomBytes(32).toString("hex");
+  try {
+    mkdirSync(dirname(tokenFile), { recursive: true });
+    writeFileSync(tokenFile, tok + "\n", { mode: 0o600 });
+    console.log(`[switchboard] generated a new token, saved to ${tokenFile}`);
+  } catch (e) {
+    console.log(`[switchboard] generated an ephemeral token (could not persist: ${e.message})`);
+  }
+  console.log("\n" + "=".repeat(68));
+  console.log("  SWITCHBOARD TOKEN — give this to every agent that connects:");
+  console.log("    " + tok);
+  console.log("  (set SWITCHBOARD_MCP_TOKEN to pin your own instead)");
+  console.log("=".repeat(68) + "\n");
+  return tok;
 }
+
+const USER_TOKEN = resolveToken();
+const PORT = Number(process.env.PORT ?? 3107);
 
 function extractBearer(header) {
   const m = (header || "").match(/^Bearer\s+(.+)$/i);
@@ -74,7 +126,7 @@ const httpServer = createServer(async (req, res) => {
     if (req.method === "GET") {
       const assetPath = req.url.split("?")[0];
       const asset = INSTALL_ASSETS[assetPath];
-      if (asset) return serveAsset(res, asset);
+      if (asset) return serveAsset(req, res, asset);
     }
 
     if (extractBearer(req.headers.authorization) !== USER_TOKEN) return sendJson(res, 401, { error: "Unauthorized" });
