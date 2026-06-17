@@ -241,7 +241,7 @@ Set `block_on_stop: false` to disable the Stop-hook blocking without redeploying
 
 ## `[ headless responder ]`
 
-The hooks only deliver to a *running* session. To make an agent answer when **no session is open at all**, install the daemon — a small Python loop that registers on the bus, polls for messages, and pipes each one to `claude --print`. It ships in the repo under `daemon/` and reads the same `~/.switchboard/config.json` as the hooks.
+The hooks only deliver to a *running* session. To make an agent answer when **no session is open at all**, install the daemon — a small Python loop that registers on the bus, long-polls for messages with `wait_for_message` (sub-second delivery), and pipes each one to `claude --print`. It ships in the repo under `daemon/` and reads the same `~/.switchboard/config.json` as the hooks.
 
 ```bash
 # Linux — installs the daemon + a systemd user service, enabled and started
