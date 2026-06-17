@@ -148,9 +148,9 @@ Replace the cold spawn-and-die daemon (`claude-agent-daemon.py`) with one persis
 
 - [x] **Phase 9: Headless Channel Spike (Go/No-Go Gate)** - Prove a headless `claude --channels` session stays alive idle and fires a turn on a pushed event — no TTY, OpenClaw 2.1.179 — before any bridge code is written ✅ PASSED 2026-06-16 (GO)
 - [x] **Phase 10: switchboard-channel MCP Bridge** - Build the Node stdio MCP bridge that long-polls the bus, injects events into the channel session, and exposes a reply tool — with a mandatory sender allowlist ✅ 2026-06-16 (verified live)
-- [ ] **Phase 11: Persistent Deploy + Inbox-Collision Resolution** - Ship the responder as a systemd user unit on OpenClaw and resolve the inbox-drain collision with the existing cold daemon
-- [ ] **Phase 12: Hourly Context Management** - Bound the responder's context on an hourly cadence via compaction or session rotation without dropping off the bus
-- [ ] **Phase 13: Security Audit + End-to-End Verify** - Audit the channel-injection path into the bypass-permissions session and prove a full Fred-to-context-aware-reply round trip end to end
+- [x] **Phase 11: Persistent Deploy + Inbox-Collision Resolution** - Ship the responder as a systemd user unit on OpenClaw and resolve the inbox-drain collision with the existing cold daemon ✅ 2026-06-16 (live as Billy; cold daemon retired)
+- [x] **Phase 12: Hourly Context Management** - Bound the responder's context on an hourly cadence via compaction or session rotation without dropping off the bus ✅ 2026-06-16 (in-session /compact, continuity preserved)
+- [x] **Phase 13: Security Audit + End-to-End Verify** - Audit the channel-injection path into the bypass-permissions session and prove a full Fred-to-context-aware-reply round trip end to end ✅ 2026-06-16 (M1/M2/M3 live; injection refused; real-Fred E2E)
 
 ### Phase Details
 

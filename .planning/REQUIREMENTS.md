@@ -84,27 +84,27 @@
 
 ### Responder & Channel Bridge
 
-- [ ] **RESP-01**: A persistent headless `claude --channels` session on OpenClaw answers bus messages with full conversation context (not a fresh per-message process), staying alive while idle between messages
-- [ ] **RESP-02**: A Node `switchboard-channel` MCP bridge long-polls the bus for the responder's agent id and injects each inbound message into the session as a `claude/channel` event in <1s
-- [ ] **RESP-03**: The bridge exposes a reply tool the session calls to send its answer back to the original sender on the bus, preserving `reply_to`/`thread_id`
-- [ ] **RESP-04**: The bridge enforces a sender allowlist — only approved agent ids are injected as events; messages from anyone else are dropped before reaching the session
+- [x] **RESP-01**: A persistent headless `claude --channels` session on OpenClaw answers bus messages with full conversation context (not a fresh per-message process), staying alive while idle between messages
+- [x] **RESP-02**: A Node `switchboard-channel` MCP bridge long-polls the bus for the responder's agent id and injects each inbound message into the session as a `claude/channel` event in <1s
+- [x] **RESP-03**: The bridge exposes a reply tool the session calls to send its answer back to the original sender on the bus, preserving `reply_to`/`thread_id`
+- [x] **RESP-04**: The bridge enforces a sender allowlist — only approved agent ids are injected as events; messages from anyone else are dropped before reaching the session
 
 ### Verification (v1.2)
 
-- [ ] **VERIFY-04**: A spike proves a headless `claude --channels` session (no TTY, OpenClaw `claude` 2.1.179) stays alive while idle and autonomously fires a turn on a pushed channel event — this gates the rest of the milestone
-- [ ] **VERIFY-05**: End to end, a bus agent (e.g. Fred) sends a DM while no interactive session is open and receives a context-aware reply within ~2s, with the responder process still alive afterward
+- [x] **VERIFY-04**: A spike proves a headless `claude --channels` session (no TTY, OpenClaw `claude` 2.1.179) stays alive while idle and autonomously fires a turn on a pushed channel event — this gates the rest of the milestone
+- [x] **VERIFY-05**: End to end, a bus agent (e.g. Fred) sends a DM while no interactive session is open and receives a context-aware reply within ~2s, with the responder process still alive afterward
 
 ### Deployment (v1.2)
 
-- [ ] **DEPLOY-05**: The responder runs as a systemd user unit on OpenClaw (auto-restart, journald logs) without colliding with the existing `claude-code-agent` cold daemon's inbox — resolved via a dedicated agent id or by retiring the cold daemon
+- [x] **DEPLOY-05**: The responder runs as a systemd user unit on OpenClaw (auto-restart, journald logs) without colliding with the existing `claude-code-agent` cold daemon's inbox — resolved via a dedicated agent id or by retiring the cold daemon
 
 ### Context Management
 
-- [ ] **CTX-01**: The responder's context is bounded on an hourly cadence — true `/compact` if it can be driven into the session, otherwise automatic hourly session rotation — without the responder dropping off the bus
+- [x] **CTX-01**: The responder's context is bounded on an hourly cadence — true `/compact` if it can be driven into the session, otherwise automatic hourly session rotation — without the responder dropping off the bus
 
 ### Security (v1.2)
 
-- [ ] **SEC-02**: A security audit covers the channel-injection path into the `--dangerously-skip-permissions` session (prompt injection, allowlist bypass, tool-abuse blast radius); findings are triaged and either mitigated or explicitly accepted
+- [x] **SEC-02**: A security audit covers the channel-injection path into the `--dangerously-skip-permissions` session (prompt injection, allowlist bypass, tool-abuse blast radius); findings are triaged and either mitigated or explicitly accepted
 
 ## v2 Requirements
 
@@ -164,15 +164,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | SCRAPE-03 | Phase 7 | Pending |
 | CONN-04 | Phase 8 | Pending |
 | VERIFY-03 | Phase 8 | Pending |
-| VERIFY-04 | Phase 9 | Pending |
-| RESP-02 | Phase 10 | Pending |
-| RESP-03 | Phase 10 | Pending |
-| RESP-04 | Phase 10 | Pending |
-| RESP-01 | Phase 11 | Pending |
-| DEPLOY-05 | Phase 11 | Pending |
-| CTX-01 | Phase 12 | Pending |
-| SEC-02 | Phase 13 | Pending |
-| VERIFY-05 | Phase 13 | Pending |
+| VERIFY-04 | Phase 9 | Done |
+| RESP-02 | Phase 10 | Done |
+| RESP-03 | Phase 10 | Done |
+| RESP-04 | Phase 10 | Done |
+| RESP-01 | Phase 11 | Done |
+| DEPLOY-05 | Phase 11 | Done |
+| CTX-01 | Phase 12 | Done |
+| SEC-02 | Phase 13 | Done |
+| VERIFY-05 | Phase 13 | Done |
 
 **Coverage:**
 - v1.0 requirements: 22 total — mapped 22/22 (100%, phases 1–5)

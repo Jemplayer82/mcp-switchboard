@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Headless Full-Context Channel Responder
-status: planning
-last_updated: "2026-06-17T03:05:31.576Z"
-last_activity: 2026-06-17
+status: complete
+last_updated: "2026-06-17T04:00:00.000Z"
+last_activity: 2026-06-16
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 40
+  completed_phases: 5
+  total_plans: 5
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** Two agents exchange a message in real time (sub-second while a recipient is actively waiting) with zero per-agent custom plumbing — wiring a new agent is one HTTP MCP config line.
-**Current focus:** Phases 9–10 done; Phase 11 — deploy as systemd unit + cut over to Billy
+**Current focus:** ✅ v1.2 COMPLETE — all 5 phases done. Billy is the live full-context bus responder.
 
 ## Current Position
 
-Phase: 11 — Persistent Deploy + Inbox-Collision Resolution
+Phase: All complete (9–13)
 Plan: —
-Status: Bridge built & verified live; deploying as systemd unit, retiring cold daemon
-Last activity: 2026-06-16 — Phase 10 bridge verified live (BRIDGE-OK round-trip + allowlist drop) under test id Claude-rc-test
+Status: Milestone v1.2 complete — running lifecycle (audit → complete → cleanup)
+Last activity: 2026-06-16 — Phase 13 done (security audit + mitigations live; real-Fred E2E verified)
 
 ### Milestone v1.0 — Built & verified
 
@@ -48,9 +48,9 @@ Last activity: 2026-06-16 — Phase 10 bridge verified live (BRIDGE-OK round-tri
 
 - Phase 9: Headless Channel Spike (Go/No-Go Gate) — ✅ COMPLETE (PASSED, GO)
 - Phase 10: switchboard-channel MCP Bridge — ✅ COMPLETE (verified live)
-- Phase 11: Persistent Deploy + Inbox-Collision Resolution — IN PROGRESS — **HERE**
-- Phase 12: Hourly Context Management — NOT STARTED
-- Phase 13: Security Audit + End-to-End Verify — NOT STARTED
+- Phase 11: Persistent Deploy + Inbox-Collision Resolution — ✅ COMPLETE (Billy live; cold daemon retired)
+- Phase 12: Hourly Context Management — ✅ COMPLETE (in-session /compact, continuity preserved)
+- Phase 13: Security Audit + End-to-End Verify — ✅ COMPLETE (M1/M2/M3 live; injection refused; real-Fred E2E)
 
 ## Performance Metrics
 
