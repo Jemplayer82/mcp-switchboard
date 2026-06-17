@@ -25,9 +25,10 @@ Environment="HOME=%h"
 Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="TERM=xterm-256color"
 Environment="CHANNEL_WORKDIR=%h/switchboard-channel"
-# --- set these for your deployment (finalized in Phase 11) ---
-Environment="SWITCHBOARD_CHANNEL_AGENT_ID=__SET_IN_PHASE_11__"
-Environment="SWITCHBOARD_ALLOWED_SENDERS=__COMMA_LIST_SET_IN_PHASE_11__"
+# --- deployment config (Phase 11): responder takes over the Billy id; the cold
+#     claude-code-agent daemon is stopped+disabled so Billy's inbox has one consumer. ---
+Environment="SWITCHBOARD_CHANNEL_AGENT_ID=Billy"
+Environment="SWITCHBOARD_ALLOWED_SENDERS=Claude,Fred,Hermes,node24-upgrade,claude-code"
 ExecStart=/usr/bin/python3 %h/switchboard-channel/run-channel-session.py
 Restart=always
 RestartSec=10
