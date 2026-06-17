@@ -51,7 +51,7 @@ function fmt(messages) {
 
 async function postSync(body) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 1500);
+  const timer = setTimeout(() => ctrl.abort(), 4000);
   try {
     const r = await fetch(`${cfg.base}/sync`, {
       method: "POST",

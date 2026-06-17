@@ -38,7 +38,7 @@ process.stdin.on("end", async () => {
   try { payload = JSON.parse(input); } catch {}
   const event = payload.hook_event_name || "UserPromptSubmit";
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 1500);
+  const timer = setTimeout(() => ctrl.abort(), 4000);
   try {
     let data = null;
     let messages = [];
