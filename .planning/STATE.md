@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-06-17T03:05:31.576Z"
 last_activity: 2026-06-17
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-11)
+See: .planning/PROJECT.md (updated 2026-06-16)
 
 **Core value:** Two agents exchange a message in real time (sub-second while a recipient is actively waiting) with zero per-agent custom plumbing — wiring a new agent is one HTTP MCP config line.
-**Current focus:** v1.1 roadmap defined — Phase 6 is next (Gateway Stand-Up + Switchboard Redeploy)
+**Current focus:** v1.2 roadmap defined — Phase 9 (Headless Channel Spike) is next
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 9 — Headless Channel Spike (Go/No-Go Gate)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-17 — Milestone v1.2 started
+Status: Ready to start
+Last activity: 2026-06-17 — v1.2 roadmap created (Phases 9–13)
 
 ### Milestone v1.0 — Built & verified
 
@@ -38,11 +38,19 @@ Last activity: 2026-06-17 — Milestone v1.2 started
 - Token: C:/tmp/agentbus-token.txt (also in .claude.json + ~/.agentbus/config.json). NOT committed.
 - Phase 5 (Verify): Blocked on Hermes wiring (OpenClaw host not accessible). VERIFY-02 deferred.
 
-### Milestone v1.1 — In planning
+### Milestone v1.1 — Deferred (unstarted)
 
-- Phase 6: Gateway Stand-Up + Switchboard Redeploy — NOT STARTED
-- Phase 7: Playwright Scraper Behind Gateway — NOT STARTED
-- Phase 8: Client Rewire + End-to-End Verify — NOT STARTED
+- Phase 6: Gateway Stand-Up + Switchboard Redeploy — NOT STARTED (deferred)
+- Phase 7: Playwright Scraper Behind Gateway — NOT STARTED (deferred)
+- Phase 8: Client Rewire + End-to-End Verify — NOT STARTED (deferred)
+
+### Milestone v1.2 — In planning
+
+- Phase 9: Headless Channel Spike (Go/No-Go Gate) — NOT STARTED — **START HERE**
+- Phase 10: switchboard-channel MCP Bridge — NOT STARTED (blocked on Phase 9 pass)
+- Phase 11: Persistent Deploy + Inbox-Collision Resolution — NOT STARTED
+- Phase 12: Hourly Context Management — NOT STARTED
+- Phase 13: Security Audit + End-to-End Verify — NOT STARTED
 
 ## Performance Metrics
 
@@ -80,14 +88,19 @@ Recent decisions affecting current work:
 - (v1.1) Supergateway on `:8000` fronts all MCP servers — single host:port; new backends mount without new ports
 - (v1.1) Scraper = wrap official `@playwright/mcp`, not a bespoke build — upstream-maintained, browsers baked into image
 - (v1.1 open) Path-routing mechanism on `:8000` (one supergateway per backend behind nginx vs. path-router) — to be resolved in Phase 6 plan step
+- (v1.2) Bridge code in Node (no bun) on OpenClaw; custom channel MCP requires `--dangerously-load-development-channels`
+- (v1.2 open) Inbox-drain collision: run responder under dedicated agent id (`Claude-rc`) vs. retire cold daemon — decide before Phase 11
 
 ### Pending Todos
 
 - Resolve open decision: how exactly does path routing work on `:8000`? One supergateway instance per backend behind `mcp-nginx-proxy`, or a dedicated path-router? Decide before Phase 6 implementation.
 - Phase 6: identify and update all stale `agentbus` / id 63 / `:3108` references before redeployment.
+- Phase 9: run spike Phases A → B → C per approved plan (`lets-verirfy-1-contex-elegant-pebble.md`) before writing any bridge code.
+- Phase 11 (pre-work): decide dedicated agent id vs. retire cold daemon — both paths are valid; make the call before implementing the systemd unit.
 
 ### Blockers/Concerns
 
+- **[Phase 9 — GATE] The entire v1.2 milestone is contingent on the headless spike.** If `claude --channels` cannot be proven to run headless and fire autonomously on OpenClaw 2.1.179, Phases 10–13 do not execute. Cold daemon is retained.
 - **[Phase 5 — HELD] Hermes wiring is the user's step.** Hermes runs on the OpenClaw host (192.168.1.19); SSH not accessible to Claude. To wire: add HTTP MCP entry `agentbus` → `http://192.168.7.50:3108/mcp` with bearer token from `C:/tmp/agentbus-token.txt`. Once wired, VERIFY-02 can run. This may be superseded by v1.1 gateway rewire (CONN-04).
 - [Phase 2/4] `wake_url` push depends on OpenClaw exposing a reachable run-trigger endpoint. Falls back to persistent long-poll loop if not available.
 - [Phase 4] Claude Code cannot be webhook-woken — no `wake_url` for Claude; async path is turn-boundary hooks only.
@@ -102,7 +115,7 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-06-11
-Stopped at: v1.1 roadmap created (Phases 6-8); REQUIREMENTS traceability updated
+Last session: 2026-06-17
+Stopped at: v1.2 roadmap created (Phases 9-13); REQUIREMENTS traceability updated
 Resume file: None
-Next action: `/gsd:plan-phase 6` — resolve path-routing open decision, then plan gateway stand-up
+Next action: `/gsd:plan-phase 9` — run headless channel spike (Phases A→B→C per approved plan)

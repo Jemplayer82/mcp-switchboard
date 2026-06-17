@@ -131,10 +131,91 @@ Mount backends onto the existing `:8000` gateway endpoint, redeploy the switchbo
 
 ---
 
+## Milestone v1.2 — Headless Full-Context Channel Responder
+
+### Overview
+
+Replace the cold spawn-and-die daemon (`claude-agent-daemon.py`) with one persistent `claude --channels` session on OpenClaw — fronted by a Node `switchboard-channel` MCP bridge — so bus agents get real-time, context-keeping replies even when no interactive session is open. The milestone is gated by a headless verification spike (Phase 9): if `--channels` cannot be proven to run headless and fire autonomously, the milestone stops and the cold daemon is retained. Build phases execute only after the spike passes.
+
+**Constraints:**
+- Node (no bun) on OpenClaw for all bridge code
+- Single-replica switchboard; `wait_for_message` drains — bridge must be the sole real-time consumer for the responder identity
+- Shared bearer token on the trusted LAN
+- Custom `switchboard-channel` bridge requires `--dangerously-load-development-channels` (research-preview channels flag)
+- Bridge runs under a dedicated agent id (e.g. `Claude-rc`) OR the cold daemon is retired — decide before Phase 11 to avoid inbox-drain collision
+
+### Phases
+
+- [ ] **Phase 9: Headless Channel Spike (Go/No-Go Gate)** - Prove a headless `claude --channels` session stays alive idle and fires a turn on a pushed event — no TTY, OpenClaw 2.1.179 — before any bridge code is written
+- [ ] **Phase 10: switchboard-channel MCP Bridge** - Build the Node stdio MCP bridge that long-polls the bus, injects events into the channel session, and exposes a reply tool — with a mandatory sender allowlist
+- [ ] **Phase 11: Persistent Deploy + Inbox-Collision Resolution** - Ship the responder as a systemd user unit on OpenClaw and resolve the inbox-drain collision with the existing cold daemon
+- [ ] **Phase 12: Hourly Context Management** - Bound the responder's context on an hourly cadence via compaction or session rotation without dropping off the bus
+- [ ] **Phase 13: Security Audit + End-to-End Verify** - Audit the channel-injection path into the bypass-permissions session and prove a full Fred-to-context-aware-reply round trip end to end
+
+### Phase Details
+
+### Phase 9: Headless Channel Spike (Go/No-Go Gate)
+**Goal**: Empirical confirmation that a headless `claude --channels` session (no TTY, `claude` 2.1.179 on OpenClaw Linux) stays alive while idle and autonomously fires a turn — including a tool call — when a channel event is pushed, with no human interaction.
+**Depends on**: Phase 8
+**Requirements**: VERIFY-04
+**Success Criteria** (what must be TRUE):
+  1. A `claude --channels` session launched detached (`setsid`, `< /dev/null`, no TTY) with the official `fakechat` channel starts and its log confirms channel registration — not an immediate exit
+  2. Pushing a `fakechat` event to the idle, headless session triggers a visible autonomous turn in the log (Claude processes the event and produces output) with zero terminal interaction
+  3. After sitting idle for ≥5 minutes, the process is still alive (`ps`/`systemctl`) and a subsequent push again triggers an autonomous turn
+  4. The spike log answers the six sub-questions from the approved plan: `--channels` on 2.1.179, headless no-TTY survival, autonomous turn on push, idle longevity, OAuth scope adequacy, and compaction viability
+**Plans**: TBD
+**Note**: **GO/NO-GO GATE.** If any of criteria 1–3 fail, the milestone stops here. The cold `claude-code-agent` daemon on OpenClaw is left running. Phases 10–13 are not started. Report what failed and keep the cold daemon. The spike runs Phase A → B → C from the approved plan (`lets-verirfy-1-contex-elegant-pebble.md`).
+
+### Phase 10: switchboard-channel MCP Bridge
+**Goal**: A Node ESM stdio MCP server (`switchboard-channel.mjs`) long-polls the bus for the responder's agent id, injects each inbound message as a `claude/channel` event into the live session, exposes a reply tool the session calls to respond on the bus, and silently drops messages from agents not on the sender allowlist.
+**Depends on**: Phase 9 (spike must pass)
+**Requirements**: RESP-02, RESP-03, RESP-04
+**Success Criteria** (what must be TRUE):
+  1. The bridge starts as a stdio MCP server and advertises the `claude/channel` experimental capability plus a `reply` tool; it long-polls `wait_for_message` for the responder agent id in a sub-second loop
+  2. When a message arrives from an allowlisted agent, the bridge emits a `notifications/claude/channel` notification to the attached session within <1s of the message appearing on the bus
+  3. The session calls the `reply` tool, and the bridge sends that reply back to the original sender on the bus with the correct `reply_to` and `thread_id` preserved
+  4. A message from an agent id not in the sender allowlist is silently dropped — no channel notification is emitted and no error crashes the bridge
+**Plans**: TBD
+
+### Phase 11: Persistent Deploy + Inbox-Collision Resolution
+**Goal**: The persistent `claude --channels` session with the `switchboard-channel` bridge runs as a systemd user unit on OpenClaw with auto-restart and journald logs, and the inbox-drain collision with the existing cold daemon is eliminated — either the responder runs under a dedicated agent id or the cold daemon is retired.
+**Depends on**: Phase 10
+**Requirements**: RESP-01, DEPLOY-05
+**Success Criteria** (what must be TRUE):
+  1. `systemctl --user status claude-channel-agent` shows the unit active (running) after a fresh enable + start, and `journalctl --user -u claude-channel-agent` shows the channel session and bridge both started cleanly
+  2. After `systemctl --user restart claude-channel-agent`, the session reconnects to the bus, re-registers, and resumes long-polling — no manual intervention required
+  3. Only one consumer drains the responder's inbox: either the bridge runs under a distinct agent id (`Claude-rc` or equivalent) with no competing `wait_for_message` from the cold daemon, or `claude-code-agent.service` has been stopped/disabled and its unit retired
+  4. With the unit running, a bus agent sends a DM to the responder and receives a reply — confirming the session is alive, context-keeping, and consuming from a collision-free inbox
+**Plans**: TBD
+
+### Phase 12: Hourly Context Management
+**Goal**: The responder's context window is bounded on an hourly cadence — via true `/compact` if it can be driven into the session, otherwise via automatic session rotation — without the responder going offline or dropping messages during the transition.
+**Depends on**: Phase 11
+**Requirements**: CTX-01
+**Success Criteria** (what must be TRUE):
+  1. One hour after the responder starts, an hourly cadence event fires (systemd timer or equivalent) and the compaction/rotation mechanism executes without manual intervention
+  2. If rotation is used: the old session exits cleanly, the systemd unit restarts, the new session registers on the bus under the same agent id, and the bridge resumes long-polling — total downtime is <10s
+  3. After the rotation or compaction completes, a bus agent can immediately send a DM and receive a reply — the responder has not dropped off the bus
+  4. `journalctl --user -u claude-channel-agent` (or the timer unit) shows the hourly event and a clean restart/compaction log with no crash entries
+**Plans**: TBD
+
+### Phase 13: Security Audit + End-to-End Verify
+**Goal**: The channel-injection path into the `--dangerously-skip-permissions` session has been audited for prompt injection, allowlist bypass, and tool-abuse blast radius, with every finding either mitigated or explicitly accepted; and a full Fred-to-context-aware-reply round trip completes end to end while no interactive session is open.
+**Depends on**: Phase 12
+**Requirements**: SEC-02, VERIFY-05
+**Success Criteria** (what must be TRUE):
+  1. A written security audit covers at minimum: prompt-injection via crafted bus message content, allowlist bypass vectors (spoofed agent id, race conditions), and tool-abuse blast radius given `--dangerously-skip-permissions` — every finding is triaged as mitigated or explicitly accepted with rationale
+  2. At least one concrete mitigation is in place (e.g. content sanitization, strict allowlist enforcement, or output tool restrictions) before the audit is closed
+  3. Fred sends a DM to the responder while no interactive Claude session is open and no human is at OpenClaw; within ~2s a reply arrives on the bus that is context-aware (references prior conversation or loaded MCP context, not a generic cold response)
+  4. After the round trip, `systemctl --user status claude-channel-agent` still shows the unit running — the responder did not crash or exit after handling the message
+**Plans**: TBD
+
+---
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 10 → 11 → 12 → 13
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -146,3 +227,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 6. Gateway Stand-Up + Switchboard Redeploy | 0/TBD | Not started | - |
 | 7. Playwright Scraper Behind Gateway | 0/TBD | Not started | - |
 | 8. Client Rewire + End-to-End Verify | 0/TBD | Not started | - |
+| 9. Headless Channel Spike (Go/No-Go Gate) | 0/TBD | Not started | - |
+| 10. switchboard-channel MCP Bridge | 0/TBD | Not started | - |
+| 11. Persistent Deploy + Inbox-Collision Resolution | 0/TBD | Not started | - |
+| 12. Hourly Context Management | 0/TBD | Not started | - |
+| 13. Security Audit + End-to-End Verify | 0/TBD | Not started | - |
