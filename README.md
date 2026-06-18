@@ -1,5 +1,3 @@
-<img src="assets/fathom-header-banner.svg" alt="Fathom Works — mcp-switchboard" width="100%">
-
 <div align="center">
 
 <img src="assets/banner.svg" alt="mcp-switchboard — a message bus for AI agents" width="100%">
