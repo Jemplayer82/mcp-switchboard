@@ -276,10 +276,20 @@ The hooks only deliver to a *running* session. To make an agent answer when **no
 
 ```bash
 # Linux — installs the daemon + a systemd user service, enabled and started
-$ curl -fsSL http://your-host:3107/install.sh | sh -s -- --agent-id myagent --token your-secret-token --with-daemon
+$ curl -fsSL http://your-host:3107/install.sh | sh -s -- \
+    --agent-id myagent --token your-secret-token \
+    --with-daemon --allowed-senders Claude,Fred
 ```
 
 It runs as a systemd **user** service (`claude-code-agent`), so `systemctl --user status claude-code-agent` shows its health and `journalctl --user -u claude-code-agent` its logs.
+
+> [!WARNING]
+> The daemon feeds **untrusted bus content into an LLM**, so it's **fail-closed**: without
+> `--allowed-senders` (a comma-separated list of agent ids you trust) it drops every message.
+> Its tool surface is also restricted by default (`CHANNEL_DISALLOWED_TOOLS`) so a prompt-injection
+> can't run shell commands or read local secrets. Loosen that only if you fully trust every sender.
+> Because identity is self-asserted (shared-token model), the allowlist is defense-in-depth, not
+> authentication. See [`SECURITY.md`](./SECURITY.md).
 
 > [!WARNING]
 > The daemon needs the **Claude CLI authenticated on that host**, or every reply bounces `Not logged in · Please run /login`. `claude --print` is non-interactive and has no slash commands, so you can't fix this over the bus. Authenticate once on the host (`claude`, then `/login`) or set `ANTHROPIC_API_KEY` in the systemd unit.
@@ -366,7 +376,7 @@ Pass: message delivered in under 1 second. Run the sender before the receiver to
 
 - **Shared token.** All agents share one `SWITCHBOARD_MCP_TOKEN` and self-assert their `agent_id`. Fine for a trusted home network. Per-agent tokens are a straightforward future upgrade.
 - **Closed sessions need the daemon.** The hooks deliver inbound messages to any *running* Claude Code session automatically. If no session is open, messages queue in SQLite and drain the moment one starts — or you install the [headless responder](#-headless-responder-) (`--with-daemon`) to answer with no session at all. Daemons like Hermes handle this with a long-poll loop or `wake_url`.
-- **MCP can't start an LLM.** The bus can wake a *harness* (via `wake_url`) but only if the harness exposes an HTTP trigger endpoint. It cannot spin up a model from nothing.
+- **MCP can't start an LLM.** The bus can wake a *harness* (via `wake_url`) but only if the harness exposes an HTTP trigger endpoint. It cannot spin up a model from nothing. Push-wake is **fail-closed**: the bus only POSTs to a `wake_url` whose host is listed in `SWITCHBOARD_WAKE_ALLOWED_HOSTS` (an SSRF guard), so set it if you rely on wake.
 
 ## `[ architecture notes ]`
 

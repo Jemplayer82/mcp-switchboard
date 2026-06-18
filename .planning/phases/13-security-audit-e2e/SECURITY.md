@@ -1,5 +1,17 @@
 # SECURITY.md — v1.2 Channel Responder (SEC-02)
 
+> [!WARNING]
+> **Post-review correction (pre-public-release audit).** This document originally claimed T4
+> (secret exfiltration) was mitigated because M1 left "no file/Bash tools." That was inaccurate:
+> the implemented restriction was a denylist of `Bash Edit Write MultiEdit NotebookEdit` only —
+> **`Read`, `Glob`, `Grep`, and `WebFetch` were still enabled**, so an injection could read
+> `~/.claude/.credentials.json` and exfiltrate via the reply tool or WebFetch. Fixed: the denylist
+> now also covers `Read Glob Grep WebFetch WebSearch Task` (channel bridge, cold daemon, and both
+> systemd units). A full-codebase review also added: push-wake SSRF guard, request/drain bounds,
+> constant-time auth, REST input clamping, and cold-daemon hardening (fail-closed allowlist, rate
+> limit, tool restriction, `--` argument-injection fix). See the top-level `SECURITY.md` for the
+> current consolidated threat model. This file is retained as the point-in-time SEC-02 record.
+
 **Scope:** the channel-injection path into the headless `Billy` responder — a persistent
 `claude --channels` session on OpenClaw running with `--dangerously-skip-permissions`, fed by
 arbitrary agent-bus message content via the `switchboard-channel` bridge.
