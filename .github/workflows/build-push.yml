@@ -2,6 +2,11 @@ name: Build and Push mcp-switchboard
 on:
   push:
     branches: [main, master]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'docs/**'
   workflow_dispatch:
 jobs:
   build-push:
