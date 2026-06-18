@@ -16,7 +16,8 @@
 //   --agent-id   SWITCHBOARD_AGENT_ID     (required)
 //   --token      SWITCHBOARD_MCP_TOKEN    (required)
 //   --base       SWITCHBOARD_BASE         (auto-templated by the server, or required)
-//   --name       SWITCHBOARD_AGENT_NAME   (default: agent-id)
+//   --name           SWITCHBOARD_AGENT_NAME     (default: agent-id)
+//   --allowed-senders SWITCHBOARD_ALLOWED_SENDERS (comma-separated; fail-closed daemon allowlist)
 //   --with-daemon   --dry-run
 
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from "node:fs";
@@ -49,6 +50,8 @@ const base = (args["base"] || process.env.SWITCHBOARD_BASE || DEFAULT_BASE).repl
 const name = args["name"] || process.env.SWITCHBOARD_AGENT_NAME || agentId;
 const withDaemon = !!args["with-daemon"];
 const dryRun = !!args["dry-run"];
+// Fail-closed sender allowlist for the headless daemon (it feeds untrusted bus content to an LLM).
+const allowedSenders = args["allowed-senders"] || process.env.SWITCHBOARD_ALLOWED_SENDERS || "";
 
 const missing = [];
 if (!agentId) missing.push("--agent-id (or SWITCHBOARD_AGENT_ID)");
@@ -113,6 +116,8 @@ function writeConfig() {
     name,
     // preserve any inbound prefs the operator already set
     inbound: { deliver: true, block_on_stop: true, ...(existing.inbound ?? {}) },
+    // fail-closed daemon allowlist; keep an existing one if no new value was passed
+    ...((allowedSenders || existing.allowlist) ? { allowlist: allowedSenders || existing.allowlist } : {}),
   };
   writeJson(path, config);
   log(`  ${tag} write ${path} (agent_id=${agentId})`);
@@ -212,6 +217,13 @@ async function installDaemon() {
   log("  WARNING: the daemon needs the Claude CLI authenticated on this host,");
   log("           or every reply bounces 'Not logged in'. Run `claude` then /login,");
   log("           or set ANTHROPIC_API_KEY in the systemd unit.");
+  if (allowedSenders) {
+    log(`  → daemon sender allowlist: ${allowedSenders}`);
+  } else {
+    log("  ⚠ SECURITY: no allowlist set — the daemon is FAIL-CLOSED and will drop EVERY message.");
+    log("    Re-run with --allowed-senders <id,id> (or set SWITCHBOARD_ALLOWED_SENDERS in the unit)");
+    log("    listing the agent ids you trust, then restart: systemctl --user restart claude-code-agent");
+  }
 }
 
 // ---- run ----------------------------------------------------------------

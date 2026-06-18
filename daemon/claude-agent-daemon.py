@@ -9,10 +9,16 @@ to the bus — the wake-when-asleep path.
 
 Config is shared with the Claude Code hooks: it reads ~/.switchboard/config.json
   { "base": "http://host:3108", "token": "...", "agent_id": "billy",
-    "name": "Billy" (optional) }
+    "name": "Billy" (optional), "allowlist": "Claude,Fred" (required to respond) }
 Environment variables override the file (handy for systemd units):
   SWITCHBOARD_BASE, SWITCHBOARD_MCP_TOKEN, SWITCHBOARD_AGENT_ID,
-  SWITCHBOARD_AGENT_NAME, CLAUDE_BIN
+  SWITCHBOARD_AGENT_NAME, CLAUDE_BIN, SWITCHBOARD_ALLOWED_SENDERS,
+  CHANNEL_DISALLOWED_TOOLS, SWITCHBOARD_RATE_MAX, SWITCHBOARD_RATE_WINDOW_MS
+
+SECURITY: this daemon pipes UNTRUSTED bus content into the Claude CLI. It is
+fail-closed — with no allowlist it drops every message. Set SWITCHBOARD_ALLOWED_SENDERS
+(or config "allowlist") to the agent ids you trust. The tool surface is restricted by
+default (CHANNEL_DISALLOWED_TOOLS) so a prompt-injection can't run shell or read secrets.
 
 PREREQUISITE: the Claude CLI on this host must be authenticated, or every reply
 bounces "Not logged in · Please run /login". Authenticate once interactively
@@ -60,6 +66,24 @@ def load_config() -> dict:
         log.error("Missing required config: %s. Set them in %s or via env.", ", ".join(missing), CONFIG_PATH)
         sys.exit(1)
 
+    # Sender allowlist (fail-closed): the daemon pipes UNTRUSTED bus content into an LLM, so
+    # only senders on this list are processed. Empty => drop everything (set it deliberately).
+    # Accepts a comma-string (env / config "allowlist") or a JSON array in config.
+    raw_allow = os.environ.get("SWITCHBOARD_ALLOWED_SENDERS")
+    if raw_allow is None:
+        raw_allow = cfg.get("allowlist", "")
+    if isinstance(raw_allow, list):
+        allowlist = {str(s).strip() for s in raw_allow if str(s).strip()}
+    else:
+        allowlist = {s.strip() for s in str(raw_allow).split(",") if s.strip()}
+
+    # Tool restriction passed to `claude --print` so a successful prompt-injection can't run
+    # shell, mutate/read files, or exfiltrate over the network. Empty string disables it.
+    disallowed = os.environ.get(
+        "CHANNEL_DISALLOWED_TOOLS",
+        "Bash Edit Write MultiEdit NotebookEdit Read Glob Grep WebFetch WebSearch Task",
+    ).split()
+
     return {
         "base": base.rstrip("/"),
         "url": base.rstrip("/") + "/mcp",
@@ -67,10 +91,29 @@ def load_config() -> dict:
         "agent_id": agent_id,
         "name": name,
         "claude_bin": os.environ.get("CLAUDE_BIN", os.path.expanduser("~/.local/bin/claude")),
+        "allowlist": allowlist,
+        "disallowed_tools": disallowed,
+        "rate_max": int(os.environ.get("SWITCHBOARD_RATE_MAX", "20")),
+        "rate_window_sec": float(os.environ.get("SWITCHBOARD_RATE_WINDOW_MS", "60000")) / 1000.0,
     }
 
 
 CFG = load_config()
+
+_rate: dict = {}  # sender -> [timestamps within the window]
+
+
+def rate_ok(sender: str) -> bool:
+    """Per-sender sliding-window rate limit (cost/DoS guard — each message is an LLM call)."""
+    now = time.time()
+    window = CFG["rate_window_sec"]
+    arr = [t for t in _rate.get(sender, []) if now - t < window]
+    if len(arr) >= CFG["rate_max"]:
+        _rate[sender] = arr
+        return False
+    arr.append(now)
+    _rate[sender] = arr
+    return True
 
 
 def mcp_call(method: str, params: dict, http_timeout: int = 10) -> dict:
@@ -133,11 +176,28 @@ def process_message(msg: dict):
     sender = msg.get("from", "unknown")
     msg_id = msg.get("id")
     thread_id = msg.get("thread_id")
+
+    # Fail-closed allowlist: only process bus content from explicitly trusted senders.
+    if sender not in CFG["allowlist"]:
+        if not CFG["allowlist"]:
+            log.warning("Dropped message %s: no allowlist configured (fail-closed). "
+                        "Set SWITCHBOARD_ALLOWED_SENDERS to enable responses.", msg_id)
+        else:
+            log.warning("Dropped message %s from non-allowlisted sender %r", msg_id, sender)
+        return
+    if not rate_ok(sender):
+        log.warning("Rate-limited message %s from %r (>%s per %ss)",
+                    msg_id, sender, CFG["rate_max"], CFG["rate_window_sec"])
+        return
+
     log.info("Message from %s (id=%s): %s", sender, msg_id, content[:120])
 
+    tool_args = ["--disallowedTools", *CFG["disallowed_tools"]] if CFG["disallowed_tools"] else []
     try:
+        # `--` terminates option parsing so attacker-controlled `content` starting with `-`
+        # is treated as the prompt, never as CLI flags (e.g. --mcp-config / --dangerously-*).
         result = subprocess.run(
-            [CFG["claude_bin"], "--print", "--no-session-persistence", content],
+            [CFG["claude_bin"], "--print", "--no-session-persistence", *tool_args, "--", content],
             capture_output=True,
             text=True,
             timeout=300,
@@ -155,6 +215,11 @@ def process_message(msg: dict):
 
 def main():
     log.info("Switchboard daemon starting (agent_id=%s, base=%s)", CFG["agent_id"], CFG["base"])
+    if CFG["allowlist"]:
+        log.info("Allowlisted senders: %s", ", ".join(sorted(CFG["allowlist"])))
+    else:
+        log.warning("No allowlist configured — fail-closed, ALL messages will be dropped. "
+                    "Set SWITCHBOARD_ALLOWED_SENDERS to enable responses.")
     register()
     log.info("Ready. Listening for messages (long-poll, sub-second delivery).")
 

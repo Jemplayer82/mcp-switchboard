@@ -33,9 +33,11 @@ Environment="SWITCHBOARD_ALLOWED_SENDERS=Claude,Fred,Hermes,node24-upgrade,claud
 # Fallback if /compact ever wedges: drop this to 0 and uncomment RuntimeMaxSec below for
 # clean hourly session rotation (Restart=always respawns; ~seconds downtime).
 Environment="CHANNEL_COMPACT_INTERVAL_SEC=3600"
-# Phase 13 / M1: restrict tool surface (untrusted bus content can't run shell or read secrets).
+# Phase 13 / M1: restrict tool surface so untrusted bus content can't run shell, write/read
+# files, or exfiltrate over the network. Read/Glob/Grep/WebFetch/WebSearch are included because
+# the session runs --dangerously-skip-permissions — an unblocked Read would dump local secrets.
 # Set to empty string only if you fully trust every allowlisted sender and want Billy to actuate.
-Environment="CHANNEL_DISALLOWED_TOOLS=Bash Edit Write MultiEdit NotebookEdit"
+Environment="CHANNEL_DISALLOWED_TOOLS=Bash Edit Write MultiEdit NotebookEdit Read Glob Grep WebFetch WebSearch Task"
 ExecStart=/usr/bin/python3 %h/switchboard-channel/run-channel-session.py
 Restart=always
 RestartSec=10

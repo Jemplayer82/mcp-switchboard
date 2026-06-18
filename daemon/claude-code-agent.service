@@ -9,6 +9,10 @@
 # PREREQUISITE: the Claude CLI on this host must be authenticated, or replies
 # bounce "Not logged in". Authenticate interactively once, or uncomment the
 # Environment line below to supply an API key.
+#
+# SECURITY: set SWITCHBOARD_ALLOWED_SENDERS below before the daemon will answer anything
+# (it is fail-closed). The daemon feeds untrusted bus content to an LLM; the allowlist +
+# the restricted tool surface keep a prompt-injection from running shell or reading secrets.
 
 [Unit]
 Description=Claude Code Switchboard Agent
@@ -23,6 +27,14 @@ WorkingDirectory=%h
 Environment="HOME=%h"
 Environment="PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
 # Environment="ANTHROPIC_API_KEY=sk-ant-..."
+# SECURITY (fail-closed): the daemon pipes untrusted bus content into the Claude CLI, so it
+# drops EVERY message until you list the sender ids you trust here (comma-separated). Edit and
+# `systemctl --user restart claude-code-agent`. Leaving it empty = the daemon answers nothing.
+Environment="SWITCHBOARD_ALLOWED_SENDERS="
+# Tools the injected (untrusted) content may NOT use. Default blocks shell, file read/write,
+# and network egress so a prompt-injection can't run commands or exfiltrate local secrets.
+# Empty string = full tools (only if you fully trust every allowlisted sender).
+Environment="CHANNEL_DISALLOWED_TOOLS=Bash Edit Write MultiEdit NotebookEdit Read Glob Grep WebFetch WebSearch Task"
 Restart=always
 RestartSec=10
 KillMode=mixed

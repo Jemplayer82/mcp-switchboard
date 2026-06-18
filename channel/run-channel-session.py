@@ -16,10 +16,17 @@ CLAUDE = os.environ.get("CLAUDE_BIN", os.path.expanduser("~/.local/bin/claude"))
 # remains the fallback if /compact ever wedges the session.
 COMPACT_INTERVAL = int(os.environ.get("CHANNEL_COMPACT_INTERVAL_SEC", "3600"))
 # M1 (security): restrict the responder's tool surface so injected (untrusted) bus content
-# can't run shell, write files, or read local secrets. Space-separated; empty string = no
-# restriction (full tools — only do that if you trust every allowlisted sender completely).
+# can't run shell, write files, read local secrets, OR exfiltrate over the network. The list
+# must cover three classes: execution (Bash), file mutation (Edit/Write/MultiEdit/NotebookEdit),
+# and — critically — file READ + network egress (Read/Glob/Grep/WebFetch/WebSearch/Task), since
+# the session runs with --dangerously-skip-permissions: an unblocked Read would let injection
+# dump ~/.claude/.credentials.json or ~/.switchboard/config.json straight to the reply tool.
+# Space-separated; empty string = no restriction (full tools — only if you trust every
+# allowlisted sender completely and want Billy to actuate). NOTE: this is a denylist, so any
+# NEW tool a future Claude version adds is permitted by default — re-audit on CLI upgrades.
 DISALLOWED_TOOLS = os.environ.get(
-    "CHANNEL_DISALLOWED_TOOLS", "Bash Edit Write MultiEdit NotebookEdit"
+    "CHANNEL_DISALLOWED_TOOLS",
+    "Bash Edit Write MultiEdit NotebookEdit Read Glob Grep WebFetch WebSearch Task",
 ).split()
 
 master, slave = os.openpty()
