@@ -22,6 +22,10 @@ services:
       # Optional: the public URL agents reach this on (behind a proxy / custom
       # domain). If unset, the server derives it from each request's Host header.
       SWITCHBOARD_PUBLIC_BASE: ${SWITCHBOARD_PUBLIC_BASE:-}
+      # Push-wake SSRF allowlist (fail-closed; wake disabled unless set) and request
+      # body cap. See .env.example for details — both are optional.
+      SWITCHBOARD_WAKE_ALLOWED_HOSTS: ${SWITCHBOARD_WAKE_ALLOWED_HOSTS:-}
+      SWITCHBOARD_MAX_BODY_BYTES: ${SWITCHBOARD_MAX_BODY_BYTES:-}
     volumes:
       - switchboard_data:/data
     healthcheck:

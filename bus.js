@@ -13,6 +13,30 @@ const ACTIVITY_CHANNEL = "#activity";
 const DM = "@dm";
 const WAKE_DEBOUNCE_MS = 2_000;
 
+// SSRF guard for push-wake: the bus does an outbound POST to an agent-supplied
+// `wake_url`, so an unrestricted fetch is an SSRF gadget for any token holder
+// (and a hijack target — register_agent can overwrite another agent's wake_url).
+// Fail closed: wake is DISABLED unless the operator allowlists target hosts via
+// SWITCHBOARD_WAKE_ALLOWED_HOSTS (comma-separated host or host:port).
+const WAKE_ALLOWED_HOSTS = (process.env.SWITCHBOARD_WAKE_ALLOWED_HOSTS || "")
+  .split(",")
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+function wakeUrlAllowed(url) {
+  if (WAKE_ALLOWED_HOSTS.length === 0) return false; // no allowlist → wake disabled
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  const host = u.host.toLowerCase(); // includes :port if present
+  const hostname = u.hostname.toLowerCase();
+  return WAKE_ALLOWED_HOSTS.some((h) => h === host || h === hostname);
+}
+
 class Bus {
   constructor() {
     this.db = new Database(DB_PATH);
@@ -148,7 +172,9 @@ class Bus {
     const maxByScope = {};
     for (const s of scopes) {
       const c = this.cursor(agentId, s.scope);
-      const found = this.db.prepare(`${s.sql} ORDER BY id`).all(...s.args(c));
+      // Cap each scope at `limit`: we never keep more than `limit` total after the merge below,
+      // so this bounds memory without changing results (oldest-first, cursor advances per scope).
+      const found = this.db.prepare(`${s.sql} ORDER BY id LIMIT ?`).all(...s.args(c), limit);
       for (const r of found) {
         rows.push(r);
         maxByScope[s.scope] = Math.max(maxByScope[s.scope] ?? 0, r.id);
@@ -323,6 +349,10 @@ class Bus {
       if (this.pendingWakes.has(agentId)) continue; // already scheduled (debounce)
       const agent = this.db.prepare(`SELECT wake_url, wake_secret FROM agents WHERE id=?`).get(agentId);
       if (!agent || !agent.wake_url) continue;
+      if (!wakeUrlAllowed(agent.wake_url)) {
+        console.warn(`[switchboard] wake skipped for '${agentId}': ${agent.wake_url} not in SWITCHBOARD_WAKE_ALLOWED_HOSTS`);
+        continue;
+      }
       this.pendingWakes.add(agentId);
       const preview = String(content ?? "").slice(0, 200);
       setTimeout(() => {

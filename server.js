@@ -5,7 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { bus } from "./bus.js";
@@ -93,10 +93,46 @@ function resolveToken() {
 
 const USER_TOKEN = resolveToken();
 const PORT = Number(process.env.PORT ?? 3107);
+// Cap request bodies so a single oversized POST can't exhaust memory (token-gated, but cheap to bound).
+const MAX_BODY_BYTES = Number(process.env.SWITCHBOARD_MAX_BODY_BYTES || 1_000_000);
+
+class PayloadTooLarge extends Error {}
 
 function extractBearer(header) {
   const m = (header || "").match(/^Bearer\s+(.+)$/i);
   return m ? m[1] : null;
+}
+
+// Constant-time bearer check — the sole auth gate, so don't leak length/prefix via `!==` timing.
+function tokenMatches(provided) {
+  if (provided == null) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(USER_TOKEN);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+// Clamp untrusted REST query/body numerics so they can't reach the bus unbounded
+// (the MCP tools enforce these via zod; the REST shortcuts must match).
+function clampLimit(v, def = 50, max = 200) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(Math.max(1, Math.floor(n)), max) : def;
+}
+function toId(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.floor(n) : undefined;
+}
+
+// Read a request body with a hard size cap. Throws PayloadTooLarge past the limit.
+async function collectBody(req) {
+  const chunks = [];
+  let total = 0;
+  for await (const c of req) {
+    total += c.length;
+    if (total > MAX_BODY_BYTES) throw new PayloadTooLarge();
+    chunks.push(c);
+  }
+  return chunks.length ? Buffer.concat(chunks) : undefined;
 }
 
 function sendJson(res, status, body) {
@@ -112,10 +148,9 @@ function buildServer() {
 }
 
 async function readBody(req) {
-  const chunks = [];
-  for await (const c of req) chunks.push(c);
-  if (!chunks.length) return undefined;
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  const buf = await collectBody(req);
+  if (!buf) return undefined;
+  return JSON.parse(buf.toString("utf8"));
 }
 
 const httpServer = createServer(async (req, res) => {
@@ -129,7 +164,7 @@ const httpServer = createServer(async (req, res) => {
       if (asset) return serveAsset(req, res, asset);
     }
 
-    if (extractBearer(req.headers.authorization) !== USER_TOKEN) return sendJson(res, 401, { error: "Unauthorized" });
+    if (!tokenMatches(extractBearer(req.headers.authorization))) return sendJson(res, 401, { error: "Unauthorized" });
 
     // Lightweight REST shortcuts for hooks/scripts (the awareness layer), bearer-authed.
     const url = new URL(req.url, "http://localhost");
@@ -142,13 +177,14 @@ const httpServer = createServer(async (req, res) => {
       const q = url.searchParams;
       return sendJson(res, 200, bus.getActivity({
         agent_id: q.get("agent_id") ?? undefined,
-        since_id: q.get("since_id") ? Number(q.get("since_id")) : undefined,
-        limit: q.get("limit") ? Number(q.get("limit")) : undefined,
+        since_id: toId(q.get("since_id")),
+        limit: clampLimit(q.get("limit")),
       }));
     }
     if (req.method === "POST" && url.pathname === "/sync") {
       const b = (await readBody(req)) || {};
       if (!b.agent_id) return sendJson(res, 400, { error: "agent_id required" });
+      if (b.limit != null) b.limit = clampLimit(b.limit);
       return sendJson(res, 200, bus.sync(b));
     }
 
@@ -165,11 +201,10 @@ const httpServer = createServer(async (req, res) => {
 
     let body;
     if (req.method === "POST") {
-      const chunks = [];
-      for await (const c of req) chunks.push(c);
-      if (chunks.length) {
+      const buf = await collectBody(req);
+      if (buf) {
         try {
-          body = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+          body = JSON.parse(buf.toString("utf8"));
         } catch {
           return sendJson(res, 400, { error: "Invalid JSON" });
         }
@@ -177,6 +212,7 @@ const httpServer = createServer(async (req, res) => {
     }
     await transport.handleRequest(req, res, body);
   } catch (err) {
+    if (err instanceof PayloadTooLarge) return sendJson(res, 413, { error: "Payload too large" });
     console.error("[switchboard] request error:", err);
     sendJson(res, 500, { error: "Internal server error" });
   }
