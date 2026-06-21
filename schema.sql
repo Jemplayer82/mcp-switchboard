@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS agents (
   last_activity   TEXT,                         -- agent's current self-reported status (awareness layer)
   last_activity_at INTEGER                      -- epoch ms of last set_status
 );
+-- Supports the stale-agent reap sweep (DELETE … WHERE last_seen < cutoff).
+CREATE INDEX IF NOT EXISTS idx_agents_last_seen ON agents(last_seen);
 
 CREATE TABLE IF NOT EXISTS channels (
   id         TEXT PRIMARY KEY,                 -- slug, e.g. "general", "proj-agentbus"

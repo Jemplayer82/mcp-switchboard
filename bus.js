@@ -13,6 +13,15 @@ const ACTIVITY_CHANNEL = "#activity";
 const DM = "@dm";
 const WAKE_DEBOUNCE_MS = 2_000;
 
+// Agent reaping: the agents table only grows (registerAgent is INSERT-or-UPDATE),
+// so throwaway agent_ids clutter the roster forever. Reap any agent dark longer
+// than AGENT_TTL_MS — far longer than PRESENCE_TTL_MS, so online/active agents
+// (whose last_seen is refreshed by every touch()) are never at risk. Reaping is
+// non-destructive: a returning agent just re-registers and rejoins. The interval
+// is a backstop; listAgents() also reaps lazily on every read.
+const AGENT_TTL_MS = Number(process.env.SWITCHBOARD_AGENT_TTL_MS ?? 86_400_000); // 24h
+const REAP_INTERVAL_MS = Number(process.env.SWITCHBOARD_REAP_INTERVAL_MS ?? 3_600_000); // 1h
+
 // SSRF guard for push-wake: the bus does an outbound POST to an agent-supplied
 // `wake_url`, so an unrestricted fetch is an SSRF gadget for any token holder
 // (and a hijack target — register_agent can overwrite another agent's wake_url).
@@ -48,9 +57,46 @@ class Bus {
     this.waiters = new Map(); // agentId -> active long-poll waiter count
     this.pendingWakes = new Set(); // agentIds with a debounced wake scheduled
     this.now = () => Date.now();
+
+    // Backstop sweep so the roster self-cleans even when nobody calls list_agents.
+    // unref() so this timer never keeps the process alive on its own.
+    if (REAP_INTERVAL_MS > 0 && AGENT_TTL_MS > 0) {
+      this._reapTimer = setInterval(() => {
+        try {
+          this.reapStaleAgents();
+        } catch (err) {
+          console.error("[switchboard] reap sweep failed:", String(err));
+        }
+      }, REAP_INTERVAL_MS);
+      this._reapTimer.unref?.();
+    }
   }
 
   // ---- agents / presence ----
+
+  // Delete agents whose last_seen is older than AGENT_TTL_MS, along with their
+  // memberships and read_cursors (no FK cascade — must clean up explicitly).
+  // Message history is left intact (messages reference from_agent by string).
+  // Returns the list of reaped agent ids.
+  reapStaleAgents() {
+    if (!(AGENT_TTL_MS > 0)) return [];
+    const cutoff = this.now() - AGENT_TTL_MS;
+    const stale = this.db.prepare(`SELECT id FROM agents WHERE last_seen < ?`).all(cutoff).map((r) => r.id);
+    if (!stale.length) return [];
+    const delAgent = this.db.prepare(`DELETE FROM agents WHERE id=?`);
+    const delMem = this.db.prepare(`DELETE FROM memberships WHERE agent_id=?`);
+    const delCur = this.db.prepare(`DELETE FROM read_cursors WHERE agent_id=?`);
+    const tx = this.db.transaction((ids) => {
+      for (const id of ids) {
+        delMem.run(id);
+        delCur.run(id);
+        delAgent.run(id);
+      }
+    });
+    tx(stale);
+    console.log(`[switchboard] reaped ${stale.length} stale agent(s): ${stale.join(", ")}`);
+    return stale;
+  }
   registerAgent({ agent_id, name, capabilities, wake_url, wake_secret }) {
     const caps = JSON.stringify(capabilities ?? []);
     const now = this.now();
@@ -74,6 +120,7 @@ class Bus {
   }
 
   listAgents() {
+    this.reapStaleAgents(); // lazy self-clean: every roster read prunes dark agents first
     const now = this.now();
     const rows = this.db.prepare(`SELECT id, name, capabilities, last_seen, last_activity, last_activity_at FROM agents`).all();
     return rows.map((r) => ({
