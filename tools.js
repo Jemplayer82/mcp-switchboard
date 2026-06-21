@@ -1,22 +1,35 @@
-// tools.js — registers every agentbus tool over the shared bus singleton.
+// tools.js — defines the MCP tool surface for the switchboard.
+//
+// Every tool an agent can call (send a message, long-poll for one, list who's
+// online, etc.) is registered here. Each one is a thin wrapper that validates its
+// arguments with zod and forwards to a method on the shared `bus` singleton — the
+// bus holds all the real logic and state (SQLite + the in-process event emitter).
+// A tool's `description` string is the contract the calling agent actually reads,
+// so it's written for that audience, not for us.
 import { z } from "zod";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-// Used by the `bootstrap` tool when the caller doesn't pass a base. Set
-// SWITCHBOARD_PUBLIC_BASE on the server so self-hosted instances emit their own URL.
+// Fallback base URL the `bootstrap` tool puts in the install one-liner when the
+// caller doesn't pass one. Set SWITCHBOARD_PUBLIC_BASE on the server so a
+// self-hosted instance advertises its own URL instead of localhost.
 const DEFAULT_BASE = (process.env.SWITCHBOARD_PUBLIC_BASE || "http://localhost:3107").replace(/\/+$/, "");
 
+// MCP tool results are a `content` array; these wrap our plain return values in
+// that shape. `ok` = success (JSON-stringified payload), `fail` = error result.
 const ok = (obj) => ({ content: [{ type: "text", text: JSON.stringify(obj) }] });
 const fail = (msg) => ({ content: [{ type: "text", text: String(msg) }], isError: true });
 
+// Read a file shipped inside the image (used by `bootstrap` to return the hook
+// source). Returns null if it's missing rather than throwing.
 function readAsset(rel) {
   try { return readFileSync(join(ROOT, rel), "utf8"); } catch { return null; }
 }
 
 export function registerTools(server, bus) {
+  // ---- registration & roster ----
   server.registerTool(
     "register_agent",
     {
@@ -39,6 +52,7 @@ export function registerTools(server, bus) {
     async () => ok({ agents: bus.listAgents() })
   );
 
+  // ---- channels ----
   server.registerTool(
     "create_channel",
     { description: "Create a channel (idempotent).", inputSchema: { channel_id: z.string(), name: z.string().optional() } },
@@ -60,6 +74,7 @@ export function registerTools(server, bus) {
     async (a) => ok(bus.joinChannel(a))
   );
 
+  // ---- messaging (send / receive / acknowledge) ----
   server.registerTool(
     "send_message",
     {
@@ -124,6 +139,7 @@ export function registerTools(server, bus) {
     async (a) => ok(bus.ack(a.agent_id, a.up_to_id))
   );
 
+  // ---- presence & awareness ----
   server.registerTool(
     "heartbeat",
     { description: "Refresh presence between polls; returns currently-online agents.", inputSchema: { agent_id: z.string() } },
@@ -150,6 +166,10 @@ export function registerTools(server, bus) {
     async (a) => ok(bus.getActivity(a))
   );
 
+  // ---- self-install ----
+  // `bootstrap` is how a connected agent wires ITSELF in without an operator running
+  // the installer: it returns both a copy-paste one-liner AND the raw files + target
+  // paths, so the agent can either shell out or write the files with its own tools.
   server.registerTool(
     "bootstrap",
     {
@@ -164,19 +184,28 @@ export function registerTools(server, bus) {
     },
     async ({ agent_id, platform = "unix", base, token }) => {
       const b = (base || DEFAULT_BASE).replace(/\/+$/, "");
-      const tok = token || "<SWITCHBOARD_MCP_TOKEN>";
+      const tok = token || "<SWITCHBOARD_MCP_TOKEN>"; // placeholder if the caller withheld the token
+      // Read the hook source straight from the image so the manual path below ships
+      // the exact files this server serves (no drift between served + embedded copies).
       const publish = readAsset("hooks/switchboard-publish.mjs");
       const digest = readAsset("hooks/switchboard-digest.mjs");
       if (!publish || !digest) return fail("Hook assets not found in image — rebuild with hooks/ copied in.");
 
+      // Path A — the easy route: one command that fetches and runs the installer.
       const oneLiner =
         platform === "windows"
           ? `$env:SWITCHBOARD_AGENT_ID='${agent_id}'; $env:SWITCHBOARD_MCP_TOKEN='${tok}'; irm ${b}/install.ps1 | iex`
           : `curl -fsSL ${b}/install.sh | sh -s -- --agent-id ${agent_id} --token ${tok}`;
 
+      // The settings.json hook commands (referenced in the manual block below).
       const pub = `node "~/.claude/hooks/switchboard-publish.mjs"`;
       const dig = `node "~/.claude/hooks/switchboard-digest.mjs"`;
 
+      // Path B — `manual`: everything needed to self-install by hand. Four parts:
+      //   config        → ~/.switchboard/config.json (base/token/agent_id, shared by hooks + daemon)
+      //   hooks         → the two hook scripts' full source + where to write them
+      //   settings_merge→ the hook wiring to merge into ~/.claude/settings.json (don't clobber existing)
+      //   mcp_entry     → the mcpServers entry that exposes the bus as an MCP server
       return ok({
         agent_id,
         base: b,
