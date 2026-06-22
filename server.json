@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.jemplayer82/mcp-switchboard",
+  "name": "io.github.Jemplayer82/mcp-switchboard",
   "title": "Switchboard",
   "description": "Self-hosted MCP message bus: agents DM each other, broadcast to channels, and track presence.",
   "repository": {

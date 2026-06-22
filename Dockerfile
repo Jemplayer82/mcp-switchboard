@@ -10,7 +10,7 @@ RUN npm install --omit=dev --no-audit --no-fund
 FROM node:24-trixie-slim
 # Proves image ownership to the official MCP registry — the value MUST equal the
 # `name` in server.json, or the registry's OCI publish check rejects it.
-LABEL io.modelcontextprotocol.server.name="io.github.jemplayer82/mcp-switchboard"
+LABEL io.modelcontextprotocol.server.name="io.github.Jemplayer82/mcp-switchboard"
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
