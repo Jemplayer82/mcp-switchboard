@@ -4,6 +4,24 @@
   "type": "module",
   "private": true,
   "description": "Real-time inter-agent switchboard exposed as a streamable-HTTP MCP server.",
+  "license": "AGPL-3.0-only",
+  "author": "Fathom Consulting LLC",
+  "homepage": "https://github.com/Jemplayer82/mcp-switchboard#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jemplayer82/mcp-switchboard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Jemplayer82/mcp-switchboard/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "agents",
+    "multi-agent",
+    "message-bus",
+    "switchboard"
+  ],
   "scripts": {
     "start": "node server.js"
   },
