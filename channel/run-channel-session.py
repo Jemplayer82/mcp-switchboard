@@ -37,7 +37,10 @@ env["PATH"] = os.path.expanduser("~/.local/bin") + ":" + env.get("PATH", "")
 env["TERM"] = "xterm-256color"
 
 cmd = [CLAUDE, "--dangerously-load-development-channels", "server:switchboard-channel",
-       "--dangerously-skip-permissions"]
+       "--dangerously-skip-permissions",
+       # lock MCP to channel bridge only (strict ignores ~/.claude.json) so untrusted
+       # bus content cannot reach schwab/home-assistant/portainer/proxmox/github tools
+       "--strict-mcp-config", "--mcp-config", os.path.join(WORKDIR, ".mcp.json")]
 if DISALLOWED_TOOLS:
     cmd += ["--disallowedTools", *DISALLOWED_TOOLS]
 
