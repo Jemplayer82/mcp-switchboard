@@ -1,0 +1,40 @@
+name: Publish to MCP Registry
+
+# Auto-publishes the server.json metadata to registry.modelcontextprotocol.io
+# on every version tag (e.g. v1.3.1). No secrets: GitHub OIDC proves we own the
+# io.github.Jemplayer82/* namespace.
+#
+# The OCI image (ghcr.io/jemplayer82/mcp-switchboard:latest) is built + pushed by
+# build-push.yml on main and carries the io.modelcontextprotocol.server.name
+# LABEL the registry's ownership check requires — so this job only ships metadata,
+# it does not rebuild the image.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: # allow a manual re-publish from the Actions tab
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for OIDC auth to the registry
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install mcp-publisher
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+
+      - name: Sync server.json version to the release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          jq --arg v "$VERSION" '.version = $v' server.json > server.tmp && mv server.tmp server.json
+          echo "server.json version -> $VERSION"
+
+      - name: Authenticate (GitHub OIDC)
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
