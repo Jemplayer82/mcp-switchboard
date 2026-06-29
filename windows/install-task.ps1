@@ -76,13 +76,12 @@ $principal = New-ScheduledTaskPrincipal `
     -RunLevel Limited   # no admin rights needed
 
 $settings = New-ScheduledTaskSettingsSet `
-    -RestartOnFailure `
     -RestartInterval  (New-TimeSpan -Minutes 1) `
     -RestartCount     9999 `
     -StartWhenAvailable `
     -DontStopOnIdleEnd `
-    -ExecutionTimeLimit (New-TimeSpan -Seconds 0) `   # never kill
-    -MultipleInstances IgnoreNew `                    # one instance only
+    -ExecutionTimeLimit (New-TimeSpan -Seconds 0) `
+    -MultipleInstances IgnoreNew `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries
 
