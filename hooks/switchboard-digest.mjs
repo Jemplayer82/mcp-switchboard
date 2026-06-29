@@ -3,7 +3,7 @@
 // a turn starts — without the user relaying anything.
 // Robust: fast timeout, silent no-op on any failure, falls back to the legacy /activity
 // endpoint if /sync isn't deployed. Reads ~/.switchboard/config.json.
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -36,6 +36,9 @@ process.stdin.on("data", (c) => (input += c));
 process.stdin.on("end", async () => {
   let payload = {};
   try { payload = JSON.parse(input); } catch {}
+  // Touch interactive.lock so the Windows fallback daemon yields the "Claude" inbox
+  // to this live session — prevents double-drain of the shared mailbox. Best-effort.
+  try { writeFileSync(join(homedir(), ".switchboard", "interactive.lock"), String(Date.now())); } catch {}
   const event = payload.hook_event_name || "UserPromptSubmit";
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 4000);

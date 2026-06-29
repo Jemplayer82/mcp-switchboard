@@ -5,3 +5,7 @@ node_modules/
 *.db-shm
 __pycache__/
 *.pyc
+# local switchboard secrets / runtime artifacts — never commit
+.switchboard/
+windows/config.json
+*.log

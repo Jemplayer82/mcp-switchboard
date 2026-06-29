@@ -123,6 +123,22 @@ Stopped at: v1.2 SHIPPED — all 5 phases complete, audited (PASSED), archived, 
 Resume file: None
 Next action: `/gsd-new-milestone` to start the next milestone (e.g. v2 per-agent tokens / dashboard, or resume deferred v1.1 gateway+scraper)
 
+## v1.3 — Windows always-on presence daemon (2026-06-29)
+
+Branch: `feat/windows-headless-daemon`
+
+Shipped: `windows/windows-daemon.py` (headless AtLogOn service — toast + headless claude --print reply);
+`windows/install-task.ps1` (Task Scheduler installer); `windows/config.example.json`;
+`windows/README.md`. Hook edits: `hooks/switchboard-publish.mjs` and
+`hooks/switchboard-digest.mjs` now touch `~/.switchboard/interactive.lock` on every
+run, enabling the daemon's lock-yield (daemon yields the Claude inbox to any live
+interactive session to prevent double-drain). See [inbox-drain hazard](../channel/run-channel-session.py).
+
+Key decision: daemon uses `get_messages(peek=True)` + `ack(up_to_id)` NOT
+`wait_for_message` — the latter drains unconditionally inside the bus (bus.js:263)
+before any lock check. Acking before `run_claude` makes hand-off exactly-once
+even under the open-session-mid-reply race.
+
 ## Operator Next Steps
 
 - Start the next milestone with /gsd-new-milestone

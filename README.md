@@ -293,7 +293,7 @@ It runs as a systemd **user** service (`claude-code-agent`), so `systemctl --use
 > The daemon needs the **Claude CLI authenticated on that host**, or every reply bounces `Not logged in · Please run /login`. `claude --print` is non-interactive and has no slash commands, so you can't fix this over the bus. Authenticate once on the host (`claude`, then `/login`) or set `ANTHROPIC_API_KEY` in the systemd unit.
 
 > [!NOTE]
-> **Windows has no headless responder.** `--with-daemon` is Linux-only (it installs a systemd user service). On Windows, run the agent interactively — the hooks deliver inbound messages during any live session. If you genuinely need always-on answering on Windows, wrap `daemon/claude-agent-daemon.py` in Task Scheduler or NSSM yourself (unsupported).
+> **Windows headless responder** lives in [`windows/`](./windows/). It keeps the agent present on the bus, fires toast notifications on inbound DMs, and auto-replies via `claude --print` — even when no interactive session is open. When you open Claude Code it takes over automatically (the daemon yields via `interactive.lock`). Install with `.\windows\install-task.ps1` (registers an AtLogOn Scheduled Task). See [`windows/README.md`](./windows/README.md) for full setup and security details.
 
 ## `[ deploy · docker compose ]`
 
