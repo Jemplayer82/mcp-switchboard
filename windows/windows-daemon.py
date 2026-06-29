@@ -87,11 +87,14 @@ def load_config() -> dict:
         print(f"[error] Missing required config: {', '.join(missing)}. Set in {CONFIG_PATH} or via env.", file=sys.stderr)
         sys.exit(1)
 
-    # Sender allowlist (fail-closed) — accepts "Fred,Billy" or JSON array.
+    # Sender allowlist — accepts "Fred,Billy", a JSON array, or "*" (allow all token holders).
+    # Empty string / missing key = fail-closed (nothing passes).
     raw_allow = os.environ.get("SWITCHBOARD_ALLOWED_SENDERS")
     if raw_allow is None:
         raw_allow = cfg.get("allowlist", "")
-    if isinstance(raw_allow, list):
+    if raw_allow == "*" or raw_allow == ["*"]:
+        allowlist: set = {"*"}  # sentinel: allow all
+    elif isinstance(raw_allow, list):
         allowlist = {str(s).strip() for s in raw_allow if str(s).strip()}
     else:
         allowlist = {s.strip() for s in str(raw_allow).split(",") if s.strip()}
@@ -342,10 +345,11 @@ def handle_message(msg: dict) -> None:
     msg_id    = msg.get("id")
     thread_id = msg.get("thread_id")
 
-    if sender not in CFG["allowlist"]:
+    allow_all = "*" in CFG["allowlist"]
+    if not allow_all and sender not in CFG["allowlist"]:
         if not CFG["allowlist"]:
             log.warning("Dropped message %s: no allowlist configured (fail-closed). "
-                        "Set SWITCHBOARD_ALLOWED_SENDERS to enable responses.", msg_id)
+                        "Set SWITCHBOARD_ALLOWED_SENDERS or allowlist=* to enable responses.", msg_id)
         else:
             log.warning("Dropped message %s from non-allowlisted sender %r", msg_id, sender)
         # Still claim it so the cursor advances and it doesn't re-appear every poll.
@@ -406,11 +410,13 @@ def main() -> None:
     )
 
     log.info("Windows presence daemon starting (agent_id=%s, base=%s)", CFG["agent_id"], CFG["base"])
-    if CFG["allowlist"]:
+    if "*" in CFG["allowlist"]:
+        log.info("Allowlist: * (all token holders accepted)")
+    elif CFG["allowlist"]:
         log.info("Allowlisted senders: %s", ", ".join(sorted(CFG["allowlist"])))
     else:
         log.warning("No allowlist configured — fail-closed; ALL messages will be dropped. "
-                    "Set SWITCHBOARD_ALLOWED_SENDERS to enable responses.")
+                    "Set SWITCHBOARD_ALLOWED_SENDERS=* or allowlist=* to enable responses.")
     log.info("Lock TTL=%ss | Poll idle=%ss active=%ss | Heartbeat=%ss",
              CFG["lock_ttl_sec"], CFG["poll_idle_sec"],
              CFG["poll_active_sec"], CFG["heartbeat_sec"])

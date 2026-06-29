@@ -27,12 +27,14 @@ write it yourself:
   "token":    "<your-switchboard-mcp-token>",
   "agent_id": "Claude",
   "name":     "Claude",
-  "allowlist": "Fred,Billy"
+  "allowlist": "*"
 }
 ```
 
-Minimum required: `base`, `token`, `agent_id`. Set `allowlist` to the
-comma-separated agent ids you trust (empty = fail-closed, zero replies).
+Minimum required: `base`, `token`, `agent_id`. For `allowlist`:
+- `"*"` — allow any token holder (recommended for trusted-LAN deployments where the token is the security boundary)
+- `"Fred,Billy"` — comma-separated explicit list
+- omit / `""` — fail-closed, drops every message
 
 ---
 
