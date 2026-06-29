@@ -68,7 +68,12 @@ $action = New-ScheduledTaskAction `
     -Argument ('"' + $daemonScript + '"') `
     -WorkingDirectory (Split-Path $daemonScript)
 
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$trigger    = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+# Repeat every minute so the daemon auto-restarts within ~60s if killed/crashed.
+# MultipleInstances:IgnoreNew means the repeat trigger is a no-op when already running.
+$triggerRep = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Minutes 1) `
+    -RepetitionDuration (New-TimeSpan -Days 3650)
 
 $principal = New-ScheduledTaskPrincipal `
     -UserId $env:USERNAME `
@@ -88,7 +93,7 @@ $settings = New-ScheduledTaskSettingsSet `
 Register-ScheduledTask `
     -TaskName  $TaskName `
     -Action    $action `
-    -Trigger   $trigger `
+    -Trigger   @($trigger, $triggerRep) `
     -Principal $principal `
     -Settings  $settings `
     -Force | Out-Null   # -Force makes re-running idempotent
@@ -98,7 +103,7 @@ Write-Host "-> registered scheduled task '$TaskName'"
 Write-Host "   Trigger  : AtLogOn (current user)"
 Write-Host "   Exe      : $pythonwExe"
 Write-Host "   Script   : $daemonScript"
-Write-Host "   Restart  : on failure, every 1 min, unlimited times"
+Write-Host "   Restart  : every 1 min repetition trigger + AtLogOn (crash-safe)"
 Write-Host "   Logs     : $env:USERPROFILE\.switchboard\windows-daemon.log"
 Write-Host ""
 Write-Host "   The task starts automatically at your next login."

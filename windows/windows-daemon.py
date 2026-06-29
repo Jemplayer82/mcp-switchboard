@@ -119,11 +119,20 @@ def load_config() -> dict:
     else:
         claude_prefix = [raw_bin]
 
+    # Legacy/alias agent IDs to also register and drain.
+    # Messages sent to any alias reach this daemon. Defaults to ["claude-code"]
+    # so old callers that still target "claude-code" are not dropped.
+    raw_aliases = cfg.get("aliases", ["claude-code"])
+    if isinstance(raw_aliases, str):
+        raw_aliases = [a.strip() for a in raw_aliases.split(",") if a.strip()]
+    aliases = [a for a in raw_aliases if a and a != agent_id]
+
     return {
         "base":          base.rstrip("/"),
         "url":           base.rstrip("/") + "/mcp",
         "token":         token,  # pragma: allowlist secret
         "agent_id":      agent_id,
+        "aliases":       aliases,
         "name":          name,
         "claude_prefix": claude_prefix,
         "allowlist":     allowlist,
@@ -190,31 +199,48 @@ def tool_call(name: str, arguments: dict, http_timeout: int = 10) -> dict:
 def register() -> None:
     result = tool_call("register_agent", {"agent_id": CFG["agent_id"], "name": CFG["name"]})
     log.info("Registered: %s", result)
+    for alias in CFG["aliases"]:
+        try:
+            tool_call("register_agent", {"agent_id": alias, "name": CFG["name"]})
+            log.info("Registered alias: %s", alias)
+        except Exception as exc:
+            log.warning("Could not register alias %s: %s", alias, exc)
 
 
 def do_heartbeat() -> None:
-    try:
-        tool_call("heartbeat", {"agent_id": CFG["agent_id"]}, http_timeout=5)
-        log.debug("Heartbeat ok")
-    except Exception as exc:
-        log.debug("Heartbeat failed (non-fatal): %s", exc)
+    for aid in [CFG["agent_id"]] + CFG["aliases"]:
+        try:
+            tool_call("heartbeat", {"agent_id": aid}, http_timeout=5)
+            log.debug("Heartbeat ok: %s", aid)
+        except Exception as exc:
+            log.debug("Heartbeat failed for %s (non-fatal): %s", aid, exc)
 
 
 def peek_inbox() -> list[dict]:
-    """Read DMs without advancing the cursor (peek=True, drain=False)."""
-    result = tool_call(
-        "get_messages",
-        {"agent_id": CFG["agent_id"], "peek": True, "drain": False},
-        http_timeout=10,
-    )
-    msgs = result.get("messages", [])
-    # Filter to direct messages only (to this agent; skip channel broadcasts)
-    return [m for m in msgs if m.get("to") == CFG["agent_id"]]
+    """Read DMs from primary + alias inboxes without advancing cursors.
+    Each returned message has a synthetic '_inbox_id' key indicating which
+    agent_id cursor to ack when claiming it."""
+    all_msgs: list[dict] = []
+    for aid in [CFG["agent_id"]] + CFG["aliases"]:
+        try:
+            result = tool_call(
+                "get_messages",
+                {"agent_id": aid, "peek": True, "drain": False},
+                http_timeout=10,
+            )
+            for m in result.get("messages", []):
+                if m.get("to") == aid:
+                    m["_inbox_id"] = aid
+                    all_msgs.append(m)
+        except Exception as exc:
+            log.warning("peek_inbox failed for %s: %s", aid, exc)
+    return all_msgs
 
 
-def claim(up_to_id: int) -> None:
-    """Advance the @dm cursor to up_to_id, claiming that message atomically."""
-    tool_call("ack", {"agent_id": CFG["agent_id"], "up_to_id": up_to_id}, http_timeout=5)
+def claim(up_to_id: int, inbox_id: Optional[str] = None) -> None:
+    """Advance the @dm cursor for inbox_id (defaults to primary agent_id)."""
+    aid = inbox_id or CFG["agent_id"]
+    tool_call("ack", {"agent_id": aid, "up_to_id": up_to_id}, http_timeout=5)
 
 
 def send_reply(to: str, content: str, thread_id: Optional[str] = None,
@@ -354,7 +380,7 @@ def handle_message(msg: dict) -> None:
             log.warning("Dropped message %s from non-allowlisted sender %r", msg_id, sender)
         # Still claim it so the cursor advances and it doesn't re-appear every poll.
         if msg_id is not None:
-            try: claim(msg_id)
+            try: claim(msg_id, msg.get("_inbox_id"))
             except Exception: pass
         return
 
@@ -363,14 +389,16 @@ def handle_message(msg: dict) -> None:
                     msg_id, sender, CFG["rate_max"], CFG["rate_window_sec"])
         return  # leave unclaimed; the session can pick it up if it comes alive
 
-    log.info("Handling message from %s (id=%s): %.120s", sender, msg_id, content)
+    inbox_id = msg.get("_inbox_id")
+    log.info("Handling message from %s (id=%s inbox=%s): %.120s",
+             sender, msg_id, inbox_id or CFG["agent_id"], content)
 
     # CLAIM before the slow LLM call — any session that opens afterward drains
     # only ids > msg_id and will not re-answer this message.
     if msg_id is not None:
         try:
-            claim(msg_id)
-            log.debug("Claimed message id=%s", msg_id)
+            claim(msg_id, inbox_id)
+            log.debug("Claimed message id=%s inbox=%s", msg_id, inbox_id)
         except Exception as exc:
             log.error("Failed to claim message %s: %s — skipping to avoid double-process", msg_id, exc)
             return
@@ -409,7 +437,9 @@ def main() -> None:
         handlers=[handler],
     )
 
-    log.info("Windows presence daemon starting (agent_id=%s, base=%s)", CFG["agent_id"], CFG["base"])
+    alias_str = ", ".join(CFG["aliases"]) if CFG["aliases"] else "none"
+    log.info("Windows presence daemon starting (agent_id=%s, aliases=%s, base=%s)",
+             CFG["agent_id"], alias_str, CFG["base"])
     if "*" in CFG["allowlist"]:
         log.info("Allowlist: * (all token holders accepted)")
     elif CFG["allowlist"]:
