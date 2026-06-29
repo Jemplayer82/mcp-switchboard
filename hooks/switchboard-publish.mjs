@@ -5,7 +5,7 @@
 //     (stop_hook_active guards against loops; channel chatter never blocks).
 // Fire-and-forget, 1.5s timeout, silent exit(0) on any failure — never blocks the session.
 // Reads ~/.switchboard/config.json: { base, token, agent_id, inbound?: { deliver, block_on_stop } }.
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, basename } from "node:path";
 
@@ -82,6 +82,9 @@ process.stdin.on("data", (c) => (input += c));
 process.stdin.on("end", async () => {
   let payload = {};
   try { payload = JSON.parse(input); } catch {}
+  // Touch interactive.lock so the Windows fallback daemon yields the "Claude" inbox
+  // to this live session — prevents double-drain of the shared mailbox. Best-effort.
+  try { writeFileSync(join(homedir(), ".switchboard", "interactive.lock"), String(Date.now())); } catch {}
   const event = payload.hook_event_name || "";
   const tool = payload.tool_name || "";
   const proj = basename(payload.cwd || "") || "unknown";

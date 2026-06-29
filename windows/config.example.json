@@ -1,0 +1,11 @@
+{
+  "base":     "http://192.168.7.50:3108",
+  "token":    "<paste-your-switchboard-mcp-token-here>",
+  "agent_id": "Claude",
+  "name":     "Claude",
+  "allowlist": "Fred,Billy",
+  "inbound": {
+    "deliver":      true,
+    "block_on_stop": true
+  }
+}
