@@ -247,12 +247,16 @@ $ErrorActionPreference='SilentlyContinue'
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null
 [Windows.UI.Notifications.ToastNotification, Windows.UI.Notifications, ContentType=WindowsRuntime] | Out-Null
 [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType=WindowsRuntime] | Out-Null
-$xml = @"
+$xml = @'
 <toast><visual><binding template="ToastGeneric">
 <text>Switchboard DM from __SENDER__</text>
 <text>__SNIPPET__</text>
 </binding></visual></toast>
-"@
+'@
+# Single-quoted here-string: PowerShell performs NO variable/subexpression expansion.
+# Python .replace() on __SENDER__/__SNIPPET__ runs before the script reaches PowerShell,
+# so all dynamic content is already inline as literal text. This blocks $(calc.exe)-style
+# injection — TW3 mitigation.
 $doc = [Windows.Data.Xml.Dom.XmlDocument]::new(); $doc.LoadXml($xml)
 $toast = [Windows.UI.Notifications.ToastNotification]::new($doc)
 $appId = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe' # pragma: allowlist secret
