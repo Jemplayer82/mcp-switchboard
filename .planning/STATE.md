@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Headless Full-Context Channel Responder
+milestone: v1.3
+milestone_name: Windows always-on presence daemon
 status: Awaiting next milestone
-stopped_at: v1.2 complete — Billy live as the full-context bus responder
-last_updated: "2026-06-17T04:13:16.416Z"
-last_activity: 2026-06-17 — Milestone v1.2 completed and archived
+stopped_at: v1.3 UAT complete + post-ship hardening — Windows daemon live and stable
+last_updated: "2026-07-07T17:58:23-05:00"
+last_activity: 2026-07-07 — Phase 14 UAT run (5 pass/1 skip/1 blocked), two production bugs found and fixed same day
 progress:
   total_phases: 5
   completed_phases: 5
@@ -139,6 +139,45 @@ Key decision: daemon uses `get_messages(peek=True)` + `ack(up_to_id)` NOT
 before any lock check. Acking before `run_claude` makes hand-off exactly-once
 even under the open-session-mid-reply race.
 
+### Phase 14 UAT + post-ship hardening (2026-07-07)
+
+UAT results archived at `.planning/phases/14-windows-daemon/14-UAT.md`: 7 tests,
+5 pass, 1 skipped (allowlist changed to wildcard mid-UAT), 1 blocked (idle-DM test
+needs no-session verification, deferred to manual). Also shipped in the same pass:
+- `aliases` config — daemon now registers + drains a legacy `claude-code` inbox
+  alongside `Claude` so old callers aren't orphaned (commit `ab9c970`).
+- Crash-safe restart: `install-task.ps1` repetition trigger fixes a real gap
+  where `RestartCount`/`RestartInterval` only covers Task Scheduler launch
+  failures, not runtime kills (verified: 41s recovery after `Stop-Process`).
+
+Two production bugs found live (via Fred hammering the daemon with real bus
+traffic) and fixed same day, commit `040677f`:
+- Console windows flashing on every auto-reply — `pythonw.exe` has no console
+  for spawned children to inherit; both `subprocess.run()` calls now pass
+  `creationflags=subprocess.CREATE_NO_WINDOW`.
+- Self-sustaining reply loop — `run_claude()` didn't check the subprocess exit
+  code, so a failed `claude --print` (headless auth 401, unrelated to
+  interactive-session auth) had its raw stderr forwarded to the sender as if it
+  were a real answer. Recipient tried to "help debug" the fake error, daemon
+  tried to reply to that the same broken way, repeat indefinitely. Fixed:
+  nonzero exit now raises, `handle_message()` logs and stays silent instead of
+  relaying CLI failures onto the bus.
+- **Known open item, not code-fixable from here:** headless `claude --print`
+  currently fails auth on this workstation even though the interactive session
+  and `claude auth status` both report logged in — non-interactive invocations
+  re-read credentials from disk and don't share the interactive session's
+  state. Operator needs to run `claude login` again. Until then the daemon
+  fails safe (silent, no reply) rather than erroring onto the bus.
+
+Independent review: `security-review` (fresh subagent, no prior context) and a
+differential-review quick-triage both found no security regressions — the
+alias mechanism doesn't touch the allowlist gate, `_inbox_id` can't be
+attacker-influenced, and the error-handling rewrite is a hardening (stops
+forwarding subprocess stderr to untrusted recipients), not a weakening. Report
+at `.planning/phases/14-windows-daemon/14-DIFFERENTIAL-REVIEW.md`.
+
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `claude login` to fix headless `claude --print` auth (daemon currently
+  fails silent on DMs instead of replying — see above).
+- Start the next milestone with /gsd-new-milestone when ready.
