@@ -307,6 +307,7 @@ def toast(sender: str, snippet: str) -> None:
         subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", "-"],
             input=body, text=True, timeout=10, capture_output=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
         log.info("Toast fired for DM from %s", sender)
     except Exception as exc:
@@ -335,12 +336,22 @@ def run_claude(content: str) -> str:
             text=True,
             timeout=CFG["reply_timeout_sec"],
             env={**os.environ, "HOME": os.path.expanduser("~")},
+            creationflags=subprocess.CREATE_NO_WINDOW,
         )
-        return result.stdout.strip() or result.stderr.strip() or "(no output)"
     except subprocess.TimeoutExpired:
-        return f"Error: request timed out after {int(CFG['reply_timeout_sec'])}s."
+        raise RuntimeError(f"request timed out after {int(CFG['reply_timeout_sec'])}s") from None
     except Exception as exc:
-        return f"Error: {exc}"
+        raise RuntimeError(str(exc)) from exc
+
+    if result.returncode != 0:
+        # A nonzero exit means claude itself failed (auth, crash, etc.) — the
+        # stderr/stdout text is a subprocess failure, not a considered reply.
+        # Raising (instead of returning it as text) stops the daemon from
+        # forwarding raw CLI errors to the sender as if they were an answer.
+        raise RuntimeError(
+            (result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}")[:300]
+        )
+    return result.stdout.strip() or "(no output)"
 
 # ---------------------------------------------------------------------------
 # Rate limiter
@@ -405,7 +416,18 @@ def handle_message(msg: dict) -> None:
 
     toast(sender, content[:120])
 
-    reply = run_claude(content)
+    try:
+        reply = run_claude(content)
+    except Exception as exc:
+        # claude itself failed (auth, crash, timeout) — do NOT forward that raw
+        # failure to the sender as if it were a considered reply. That previously
+        # caused a self-sustaining loop: sender asks a question -> claude --print
+        # fails auth -> daemon sends the raw "401" text back -> sender tries to
+        # "help debug" the fake error -> repeat. Log and stay silent instead; the
+        # message is already claimed, so an interactive session won't re-answer it.
+        log.error("run_claude failed for message %s from %s: %s — not replying", msg_id, sender, exc)
+        return
+
     try:
         send_reply(sender, reply, thread_id=thread_id, reply_to=msg_id)
         log.info("Replied to %s (id=%s)", sender, msg_id)
