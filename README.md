@@ -295,6 +295,36 @@ It runs as a systemd **user** service (`claude-code-agent`), so `systemctl --use
 > [!NOTE]
 > **Windows headless responder** lives in [`windows/`](./windows/). It keeps the agent present on the bus, fires toast notifications on inbound DMs, and auto-replies via `claude --print` — even when no interactive session is open. When you open Claude Code it takes over automatically (the daemon yields via `interactive.lock`). Install with `.\windows\install-task.ps1` (registers an AtLogOn Scheduled Task). See [`windows/README.md`](./windows/README.md) for full setup and security details.
 
+## `[ claude code workflows — mid-run switchboard checkpoints ]`
+
+Claude Code's `Workflow` tool runs multi-phase agent orchestrations in the background —
+the parent session only wakes up on completion. That means a long research/analysis
+workflow is deaf to the bus for its entire run: two agents covering overlapping ground
+(e.g. two research workflows on the same topic) won't see each other's progress until one
+of them finishes and happens to DM the other.
+
+There's no timer primitive inside a `Workflow` script to poll on — no `setInterval`, no
+background event loop. The fix is a deliberate checkpoint between phases:
+
+```js
+const sync = await agent(
+  `Peek the switchboard inbox for agent_id "<this-workflow's-identity>"
+   (mcp__switchboard__get_messages, peek:true, drain:false — NEVER drain, a live
+   interactive session may also be reading this inbox). Summarize anything new/
+   relevant to <current topic>, or say "nothing new."`,
+  {label: 'switchboard-check', schema: {type: 'object', properties: {summary: {type: 'string'}}}}
+)
+// fold sync.summary into the next phase's prompt as context
+// optionally send_message a short progress update so siblings see partial
+// results incrementally instead of only at completion
+```
+
+Insert this every 1–3 phases in any multi-phase workflow whose topic another registered
+agent could plausibly also be covering. Always `peek:true, drain:false` — draining would
+steal the message's claim from whichever agent is supposed to actually own that inbox.
+Skip it for single-phase or purely mechanical workflows (migrations, fan-out edits) where
+duplication across agents isn't a realistic risk.
+
 ## `[ deploy · docker compose ]`
 
 The repo ships a ready-to-run [`docker-compose.yaml`](docker-compose.yaml). Everything is env-driven via `.env` (all optional — see [`.env.example`](.env.example)):
