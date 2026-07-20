@@ -10,7 +10,9 @@
 //   2. download     switchboard-{publish,digest}.mjs  ->  ~/.claude/hooks/
 //   3. merge        ~/.claude/settings.json       (4 hook events)
 //   4. merge        ~/.claude.json mcpServers.switchboard (or print fallback)
-//   5. --with-daemon (Linux): drop the responder + systemd user unit, enable it
+//   5. append       ~/.claude/CLAUDE.md — Workflow-tool switchboard-checkpoint
+//                    convention (idempotent; skip with --skip-claude-md)
+//   6. --with-daemon (Linux): drop the responder + systemd user unit, enable it
 //
 // Inputs (flag OR env; flags win):
 //   --agent-id   SWITCHBOARD_AGENT_ID     (required)
@@ -18,7 +20,7 @@
 //   --base       SWITCHBOARD_BASE         (auto-templated by the server, or required)
 //   --name           SWITCHBOARD_AGENT_NAME     (default: agent-id)
 //   --allowed-senders SWITCHBOARD_ALLOWED_SENDERS (comma-separated; fail-closed daemon allowlist)
-//   --with-daemon   --dry-run
+//   --with-daemon   --dry-run   --skip-claude-md
 
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from "node:fs";
 import { homedir, platform } from "node:os";
@@ -37,7 +39,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (!a.startsWith("--")) continue;
     const key = a.slice(2);
-    if (key === "with-daemon" || key === "dry-run") out[key] = true;
+    if (key === "with-daemon" || key === "dry-run" || key === "skip-claude-md") out[key] = true;
     else out[key] = argv[++i];
   }
   return out;
@@ -50,6 +52,7 @@ const base = (args["base"] || process.env.SWITCHBOARD_BASE || DEFAULT_BASE).repl
 const name = args["name"] || process.env.SWITCHBOARD_AGENT_NAME || agentId;
 const withDaemon = !!args["with-daemon"];
 const dryRun = !!args["dry-run"];
+const skipClaudeMd = !!args["skip-claude-md"];
 // Fail-closed sender allowlist for the headless daemon (it feeds untrusted bus content to an LLM).
 const allowedSenders = args["allowed-senders"] || process.env.SWITCHBOARD_ALLOWED_SENDERS || "";
 
@@ -104,7 +107,7 @@ async function download(url, dest) {
 
 // ---- 1. config.json -----------------------------------------------------
 function writeConfig() {
-  log("\n[1/5] switchboard config");
+  log("\n[1/6] switchboard config");
   ensureDir(sbDir);
   const path = join(sbDir, "config.json");
   const existing = readJson(path) || {};
@@ -125,7 +128,7 @@ function writeConfig() {
 
 // ---- 2. hooks -----------------------------------------------------------
 async function installHooks() {
-  log("\n[2/5] hook scripts");
+  log("\n[2/6] hook scripts");
   ensureDir(hooksDir);
   for (const f of ["switchboard-publish.mjs", "switchboard-digest.mjs"]) {
     await download(`${base}/hooks/${f}`, join(hooksDir, f));
@@ -134,7 +137,7 @@ async function installHooks() {
 
 // ---- 3. settings.json hook wiring --------------------------------------
 function wireSettings() {
-  log("\n[3/5] settings.json hook wiring");
+  log("\n[3/6] settings.json hook wiring");
   const path = join(claudeDir, "settings.json");
   const cfg = readJson(path) || {};
   backup(path);
@@ -165,7 +168,7 @@ function wireSettings() {
 
 // ---- 4. MCP server entry -----------------------------------------------
 function wireMcp() {
-  log("\n[4/5] MCP server entry");
+  log("\n[4/6] MCP server entry");
   const path = join(home, ".claude.json");
   const entry = { type: "http", url: `${base}/mcp`, headers: { Authorization: `Bearer ${token}` } };
   if (existsSync(path)) {
@@ -188,10 +191,68 @@ function wireMcp() {
   }
 }
 
-// ---- 5. daemon (Linux) --------------------------------------------------
+// ---- 5. CLAUDE.md convention --------------------------------------------
+// Marker is checked independent of heading text so a user editing the heading
+// doesn't cause a duplicate append on re-run.
+const CLAUDE_MD_MARKER = "<!-- switchboard:workflow-checkpoints -->";
+const CLAUDE_MD_SNIPPET = `${CLAUDE_MD_MARKER}
+## Workflow Tool — Switchboard Checkpoints
+
+A \`Workflow\` call runs in the background and only wakes its orchestrating session on
+completion — nothing polls the switchboard bus mid-run. That's fine for a short workflow,
+but for anything multi-phase that does research/analysis another agent could plausibly be
+covering too (parallel research, overlapping investigations, shared-codebase work), build
+in a checkpoint so the two don't run blind to each other for the whole duration. This is a
+standing instruction — apply it by default, don't wait to be told per-workflow.
+
+**When to apply:** any \`Workflow\` script with 2+ phases where the topic overlaps ground
+another registered agent (Fred, Billy, another Claude Code session, etc.) might also be
+covering. Skip it for single-phase or purely mechanical workflows (migrations, fan-out
+edits) where cross-agent duplication isn't a realistic risk.
+
+**Pattern** — insert between \`phase()\` calls, every 1–3 phases:
+
+\`\`\`js
+const sync = await agent(
+  \`Peek the switchboard inbox for agent_id "<this-workflow's-identity>"
+   (mcp__switchboard__get_messages, peek:true, drain:false — NEVER drain, a live
+   interactive session may also be reading this inbox). Summarize anything new/
+   relevant to <current research topic>, or say "nothing new."\`,
+  {label: 'switchboard-check', schema: {type: 'object', properties: {summary: {type: 'string'}}}}
+)
+// fold sync.summary into the next phase's prompt as context
+// optionally also send_message a short progress update so siblings see partial
+// results incrementally instead of only at completion
+\`\`\`
+
+Always \`peek:true, drain:false\` — draining would steal the message's claim from
+whichever session is supposed to actually own that inbox.
+`;
+
+function writeClaudeMdConvention() {
+  log("\n[5/6] CLAUDE.md workflow-checkpoint convention");
+  if (skipClaudeMd) { log("  • skipped (--skip-claude-md)"); return; }
+
+  const path = join(claudeDir, "CLAUDE.md");
+  const existing = existsSync(path) ? readFileSync(path, "utf8") : "";
+
+  if (existing.includes(CLAUDE_MD_MARKER)) {
+    log("  • already present");
+    return;
+  }
+
+  backup(path);
+  const body = existing.length
+    ? `${existing.replace(/\s+$/, "")}\n\n${CLAUDE_MD_SNIPPET}`
+    : `# Claude Global Preferences\n\n${CLAUDE_MD_SNIPPET}`;
+  if (!dryRun) writeFileSync(path, body);
+  log(`  ${tag} append workflow-checkpoint convention -> ${path}`);
+}
+
+// ---- 6. daemon (Linux) --------------------------------------------------
 async function installDaemon() {
   if (!withDaemon) return;
-  log("\n[5/5] headless responder daemon");
+  log("\n[6/6] headless responder daemon");
   if (isWin) { log("  ! --with-daemon is Linux-only (systemd user service); skipping."); return; }
 
   const daemonDest = join(claudeDir, "claude-agent-daemon.py");
@@ -236,6 +297,7 @@ async function installDaemon() {
   await installHooks();
   wireSettings();
   wireMcp();
+  writeClaudeMdConvention();
   await installDaemon();
   log(`\n✓ Done.${dryRun ? " (nothing was written — dry-run)" : ""}`);
   if (!dryRun) log("  Restart your Claude Code session (or start a new one) to load the hooks.");
