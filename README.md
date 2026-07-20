@@ -98,7 +98,7 @@ That's it. Point your agents at `http://your-host:3107/mcp` — or let the [one-
 
 ## `[ wiring an agent · one command ]`
 
-The switchboard serves its own installer. Point a host at it and it writes the config, drops the hooks, merges your `settings.json`, and adds the MCP entry — the whole manual dance below, done for you. The base URL is baked into the script as it's served, so the agent targets the exact host it downloaded from — no IP to type.
+The switchboard serves its own installer. Point a host at it and it writes the config, drops the hooks, merges your `settings.json`, adds the MCP entry, and drops the [Workflow-checkpoint convention](#-claude-code-workflows--mid-run-switchboard-checkpoints-) into `~/.claude/CLAUDE.md` (skip with `--skip-claude-md`) — the whole manual dance below, done for you. The base URL is baked into the script as it's served, so the agent targets the exact host it downloaded from — no IP to type.
 
 **Prerequisites:** `node` on `PATH` (Claude Code already requires it); `curl` too on Linux/macOS. Nothing else.
 
@@ -127,7 +127,7 @@ $ curl -s -X POST http://your-host:3107/sync \
 # → {"ok":true, "messages":[...], "cursor":N}   (a 200 means you're wired in)
 ```
 
-**Uninstall.** Remove the four switchboard hook entries from `~/.claude/settings.json`, delete `~/.switchboard/config.json` and `~/.claude/hooks/switchboard-*.mjs`, and drop the `switchboard` entry from `mcpServers` in `~/.claude.json`. If you installed the daemon: `systemctl --user disable --now claude-code-agent`.
+**Uninstall.** Remove the four switchboard hook entries from `~/.claude/settings.json`, delete `~/.switchboard/config.json` and `~/.claude/hooks/switchboard-*.mjs`, and drop the `switchboard` entry from `mcpServers` in `~/.claude.json`. If you installed the daemon: `systemctl --user disable --now claude-code-agent`. The Workflow-checkpoint section in `~/.claude/CLAUDE.md` (marked with an HTML comment) is harmless to leave — delete it manually if you want it gone.
 
 > [!TIP]
 > **Already a Claude agent connected to the bus?** Just call the `bootstrap` tool with your `agent_id`. It returns the one-line command *plus* the full hook contents and merge instructions, so you can self-install without leaving the session.
@@ -160,7 +160,7 @@ Same URL and bearer token in its MCP config.
 To receive messages, call `wait_for_message` in a loop — it waits up to 25 seconds and returns the moment something arrives. When it returns (message or timeout), call it again immediately. That's it.
 
 > [!IMPORTANT]
-> Always use the full **25-second timeout**. Don't poll with short intervals — a reply from another agent takes as long as a Claude tool call, which is almost always longer than a 1–5 second poll. Loop immediately with no sleep between calls.
+> Explicitly pass `timeout_seconds: 25` — the tool's default is **20s**, not the full 25s max. Don't poll with short intervals either way: a reply from another agent takes as long as a Claude tool call, which is almost always longer than a 1–5 second poll. Loop immediately with no sleep between calls.
 
 ### Any Other MCP Client
 
@@ -334,6 +334,8 @@ The repo ships a ready-to-run [`docker-compose.yaml`](docker-compose.yaml). Ever
 | `SWITCHBOARD_MCP_TOKEN` | *auto-generated* | Bearer token every agent uses. Unset → generated on first boot, persisted to `/data`, printed in logs. |
 | `SWITCHBOARD_PORT` | `3107` | Host port to publish (container always listens on 3107). |
 | `SWITCHBOARD_PUBLIC_BASE` | *Host header* | Public URL agents reach you on. Only needed behind a reverse proxy / custom domain; otherwise auto-detected per request. |
+| `SWITCHBOARD_WAKE_ALLOWED_HOSTS` | *unset (wake disabled)* | Comma-separated `host` or `host:port` allowlist for push-wake `wake_url` targets — SSRF guard, fail-closed. See [honest limitations](#-honest-limitations-). |
+| `SWITCHBOARD_MAX_BODY_BYTES` | `1000000` | Max request body size in bytes (oversized-POST guard). |
 
 ```bash
 $ cp .env.example .env      # optional — edit to pin a token / port / domain
@@ -367,13 +369,13 @@ Self-contained bus smoke test (temp DB, no server required):
 $ node test/smoke.mjs
 ```
 
-Hook contract test (spins up a local server, fires synthetic hook payloads):
+Live round-trip test against an already-deployed server (two in-process clients, no shell juggling):
 
 ```bash
-$ bash test/hook_contract_test.sh
+$ SWITCHBOARD_URL=http://your-host:3107/mcp SWITCHBOARD_MCP_TOKEN=your-token node test/live.mjs
 ```
 
-Two-client real-time test against a live server:
+Two-client real-time test against a live server (separate terminals — good for eyeballing latency by hand):
 
 ```bash
 # Terminal 1
@@ -415,6 +417,7 @@ Switchboard is intentionally simple:
 - **Stateless transport.** New `McpServer` + `StreamableHTTPServerTransport` per POST (stateless pattern). All handlers close over one `bus` singleton. `res.on('close')` tears down the per-request transport — never the singleton.
 - **Long-poll as the real-time primitive.** `wait_for_message` awaits an EventEmitter wakeup or a ≤25s timeout. An AbortSignal from `res.on('close')` cancels the waiter so listeners don't leak.
 - **`/sync` as the hook primitive.** A single REST call atomically publishes agent status and drains the inbox. Because `better-sqlite3` is synchronous, the drain is an atomic claim — concurrent sessions sharing a mailbox can't double-deliver.
+- **Self-cleaning roster.** Agents dark longer than `SWITCHBOARD_AGENT_TTL_MS` (default 24h) are deleted — with their channel memberships and read cursors — lazily on every `list_agents` call and by a backstop sweep every `SWITCHBOARD_REAP_INTERVAL_MS` (default 1h). The TTL is far longer than the 60s online/offline presence window, so it never reaps a genuinely online agent; a returning agent just re-registers. Bump the TTL if you run daemons that legitimately sleep for days.
 
 ## `[ license ]`
 

@@ -89,8 +89,10 @@ def load_config() -> dict:
 
     # Sender allowlist — accepts "Fred,Billy", a JSON array, or "*" (allow all token holders).
     # Empty string / missing key = fail-closed (nothing passes).
+    # Falsy check (not `is None`): an env var present-but-empty (e.g. a template placeholder
+    # left blank) must still fall back to config.json's allowlist, not shadow it silently.
     raw_allow = os.environ.get("SWITCHBOARD_ALLOWED_SENDERS")
-    if raw_allow is None:
+    if not raw_allow:
         raw_allow = cfg.get("allowlist", "")
     if raw_allow == "*" or raw_allow == ["*"]:
         allowlist: set = {"*"}  # sentinel: allow all

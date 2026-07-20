@@ -69,8 +69,12 @@ def load_config() -> dict:
     # Sender allowlist (fail-closed): the daemon pipes UNTRUSTED bus content into an LLM, so
     # only senders on this list are processed. Empty => drop everything (set it deliberately).
     # Accepts a comma-string (env / config "allowlist") or a JSON array in config.
+    # Falsy check (not `is None`): the shipped systemd unit sets
+    # Environment="SWITCHBOARD_ALLOWED_SENDERS=" (present but empty) as a placeholder for the
+    # operator to fill in. `is None` would treat that as "explicitly set to nothing" and never
+    # fall back to config.json's allowlist, silently ignoring --allowed-senders from the installer.
     raw_allow = os.environ.get("SWITCHBOARD_ALLOWED_SENDERS")
-    if raw_allow is None:
+    if not raw_allow:
         raw_allow = cfg.get("allowlist", "")
     if isinstance(raw_allow, list):
         allowlist = {str(s).strip() for s in raw_allow if str(s).strip()}
