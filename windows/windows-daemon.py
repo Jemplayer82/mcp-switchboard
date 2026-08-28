@@ -103,7 +103,7 @@ def load_config() -> dict:
 
     disallowed = os.environ.get(
         "CHANNEL_DISALLOWED_TOOLS",
-        "Bash Edit Write MultiEdit NotebookEdit Read Glob Grep WebFetch WebSearch Task",
+        "Bash Edit Write NotebookEdit Read Glob Grep WebFetch WebSearch Task",
     ).split()
 
     # Resolve claude binary once at startup. On Windows, `claude` is usually

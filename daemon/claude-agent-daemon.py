@@ -85,7 +85,7 @@ def load_config() -> dict:
     # shell, mutate/read files, or exfiltrate over the network. Empty string disables it.
     disallowed = os.environ.get(
         "CHANNEL_DISALLOWED_TOOLS",
-        "Bash Edit Write MultiEdit NotebookEdit Read Glob Grep WebFetch WebSearch Task",
+        "Bash Edit Write NotebookEdit Read Glob Grep WebFetch WebSearch Task",
     ).split()
 
     return {

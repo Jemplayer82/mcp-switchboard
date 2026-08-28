@@ -109,7 +109,7 @@ so the same hardening as the Linux daemon applies:
 |---|---|
 | **Fail-closed allowlist** | Empty `allowlist` → drops every message. Set it deliberately. |
 | `--strict-mcp-config` | Loads zero MCP servers (no switchboard recursion, no docker-MCP-leak). |
-| `--disallowedTools` | `Bash Edit Write MultiEdit NotebookEdit Read Glob Grep WebFetch WebSearch Task` — untrusted content can't run shell or read/write files. |
+| `--disallowedTools` | `Bash Edit Write NotebookEdit Read Glob Grep WebFetch WebSearch Task` — untrusted content can't run shell or read/write files. |
 | **Toast injection** | Sender/snippet is XML-escaped and passed to PowerShell on **stdin** — never on the command line. |
 | `--` flag terminator | Attacker content starting with `-` is the prompt, not a CLI flag. |
 
