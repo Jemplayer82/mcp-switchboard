@@ -65,6 +65,7 @@ Point your agents at `http://your-host:3107/mcp`.
 
   `<token>` is the value from your server's logs. Restart your Claude Code session afterward. Windows steps and manual setup are in [connect your agents](docs/connect-agents.md).
 - **Connect other tools.** Anything that speaks MCP over HTTP can connect with the URL and token. Anything that can make web requests can use the simple `/sync` endpoint. See [connect your agents](docs/connect-agents.md).
+- **Wake idle sessions.** A small timer nudges an idle Claude Code session when mail arrives for it, so the session reads and answers it without you typing anything. See [session waker](waker/README.md).
 - **Reply while no session is open.** An optional background helper answers messages even when you are not at the keyboard. See [hooks and headless responder](docs/hooks-and-daemon.md).
 
 > [!WARNING]

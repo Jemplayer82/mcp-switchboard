@@ -1,0 +1,12 @@
+{
+  "settings": {
+    "min_interval_min": 10,
+    "max_nudges_per_hour": 4,
+    "sender_model": "haiku"
+  },
+  "mappings": [
+    {"agent_id": "claude-code", "session": "My main session"},
+    {"agent_id": "claude-research", "session": "Research", "min_interval_min": 30},
+    {"agent_id": "claude-ops", "session": "Ops", "enabled": false}
+  ]
+}

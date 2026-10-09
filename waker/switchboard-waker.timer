@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the switchboard waker every 2 minutes
+
+[Timer]
+# Wall-clock schedule on purpose: OnBootSec + OnUnitActiveSec can stall for good if the
+# user manager restarts long after boot.
+OnCalendar=*:0/2
+Persistent=false
+
+[Install]
+WantedBy=timers.target
