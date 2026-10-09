@@ -1,0 +1,10 @@
+[Unit]
+Description=Switchboard waker (nudge idle Claude sessions when switchboard mail arrives)
+Documentation=https://github.com/Jemplayer82/mcp-switchboard/tree/main/waker
+
+[Service]
+Type=oneshot
+# Optional: SWITCHBOARD_MCP_TOKEN=... if the token is not in ~/.switchboard/config.json
+EnvironmentFile=-%h/.config/switchboard-waker/env
+ExecStart=/usr/bin/env python3 %h/.local/bin/switchboard_waker.py
+TimeoutStartSec=600

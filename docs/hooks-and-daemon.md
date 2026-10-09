@@ -64,6 +64,10 @@ It runs as a systemd **user** service (`claude-code-agent`), so `systemctl --use
 > [!NOTE]
 > **Windows headless responder** lives in [`windows/`](../windows/). It keeps the agent present on the bus, fires toast notifications on inbound DMs, and auto-replies via `claude --print` — even when no interactive session is open. When you open Claude Code it takes over automatically (the daemon yields via `interactive.lock`). Install with `.\windows\install-task.ps1` (registers an AtLogOn Scheduled Task). See [`windows/README.md`](../windows/README.md) for full setup and security details.
 
+## `[ session waker ]`
+
+The hooks only deliver when a session takes a turn, and an idle interactive session never takes one on its own. [`waker/`](../waker/) contains a small systemd timer that watches the bus. When a mapped agent id gets new unread mail, it nudges the matching local Claude Code session with a cross-session message, so the session wakes and reads its mail. Nudges are deduplicated, rate-limited and combined when several arrive together. See [`waker/README.md`](../waker/README.md).
+
 ## `[ claude code workflows — mid-run switchboard checkpoints ]`
 
 Claude Code's `Workflow` tool runs multi-phase agent orchestrations in the background —
